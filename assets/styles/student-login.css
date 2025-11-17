@@ -1,0 +1,148 @@
+.login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.login-card {
+    background-color: var(--card-bg);
+    border-radius: 25px;
+    padding: 40px;
+    width: 400px;
+    max-width: 90%;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    text-align: center;
+    backdrop-filter: blur(4px); /* Optional translucent feel */
+    animation: fadeInSlideUp 0.35s cubic-bezier(0.16, 0.8, 0.45, 1) forwards;
+}
+
+.login-card .icon-background {
+    margin: 0 auto 20px auto;
+}
+
+.login-title {
+    font-size: 2em;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin-bottom: 10px;
+}
+
+.login-subtitle {
+    font-size: 1.1em;
+    color: var(--text-light);
+    margin-bottom: 30px;
+}
+
+.toggle-tabs {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 30px;
+    background-color: var(--input-bg);
+    border-radius: 12px;
+    padding: 5px;
+}
+
+.tab-btn {
+    flex-grow: 1;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 1em;
+    font-weight: 500;
+    color: var(--text-light);
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.tab-btn.active {
+    background-color: var(--card-bg);
+    color: var(--text-dark);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.form-group {
+    text-align: left;
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.9em;
+    color: var(--text-light);
+    margin-bottom: 8px;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px 15px;
+    border: 1px solid var(--secondary-gray);
+    border-radius: 8px;
+    background-color: var(--input-bg);
+    color: var(--text-dark);
+    font-size: 1em;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: var(--student-blue); /* Using student blue for focus highlight */
+    box-shadow: 0 0 0 3px rgba(97, 175, 239, 0.2);
+}
+
+.primary-btn {
+    width: 100%;
+    padding: 15px 25px;
+    border-radius: 50px;
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--card-bg);
+    background-color: var(--primary-color);
+    transition: background-color 0.2s ease, transform 0.2s ease;
+    margin-top: 20px;
+}
+
+.primary-btn:hover {
+    background-color: #1a1a2b; /* Slightly darker primary color */
+    transform: scale(1.02);
+}
+
+.primary-btn:active {
+    transform: scale(0.97);
+}
+
+/* Entry Animation */
+@keyframes fadeInSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsiveness */
+@media (max-width: 600px) {
+    .login-card {
+        padding: 30px;
+        max-width: 90%;
+    }
+
+    .login-title {
+        font-size: 1.8em;
+    }
+
+    .login-subtitle {
+        font-size: 1em;
+    }
+
+    .tab-btn {
+        padding: 10px 15px;
+    }
+
+    .primary-btn {
+        font-size: 1em;
+        padding: 12px 20px;
+    }
+}

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyClara - Create Module</title>
+    <link rel="stylesheet" href="assets/styles/global.css">
+    <link rel="stylesheet" href="assets/styles/student-create-module.css">
+</head>
+<body>
+    <div class="container module-container">
+        <div class="module-card">
+            <h1 class="module-title">Create a Module</h1>
+
+            <div class="form-group">
+                <label for="module-name">Module Name</label>
+                <input type="text" id="module-name" placeholder="e.g., Introduction to Algebra">
+            </div>
+
+            <div class="upload-area" id="upload-area">
+                <img src="assets/icons/upload.svg" alt="Upload Icon" class="upload-icon">
+                <p>Drop your file here or click to upload</p>
+                <input type="file" id="file-input" style="display: none;">
+            </div>
+
+            <div class="uploaded-files-section">
+                <h2>Uploaded Files</h2>
+                <ul id="uploaded-files-list" class="file-list"></ul>
+            </div>
+
+            <button class="btn primary-btn validate-btn hidden-onload" id="validate-modules-btn">Validate Modules</button>
+        </div>
+    </div>
+    <script src="assets/scripts/main.js"></script>
+    <script src="assets/scripts/indexeddb.js"></script>
+    <script src="assets/scripts/student-create-module.js"></script>
+</body>
+</html>

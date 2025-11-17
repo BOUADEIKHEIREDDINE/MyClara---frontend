@@ -1,0 +1,68 @@
+:root {
+    /* Base Colors */
+    --dark-navy-background: #0f121a;
+    --dark-grey-sidebar: #14161d;
+    --blue-black-main: #0f121a;
+    --grey-black-bottom: #14161d;
+    --text-light-grey: #d8d8d8;
+
+    --primary-color: #0a0a16; /* Original primary dark */
+    --secondary-gray: #e7e7ee; /* Original light gray */
+    --text-dark: #1b1b1f; /* Original dark text */
+    --text-light: #6a6b76; /* Original light text */
+    --card-bg: #ffffff; /* Original white card background */
+    --input-bg: #f4f4f7; /* Original light input background */
+
+    /* Dashboard specific colors - now updated for dark theme */
+    --sidebar-bg: var(--dark-grey-sidebar);
+    --main-bg-flat: var(--blue-black-main);
+    --module-card-bg: rgba(255, 255, 255, 0.08); /* Transparent white for module cards */
+    --module-text-dark: var(--text-light-grey); /* Light text for modules */
+    --module-text-light: #a0a0a0; /* Slightly darker light text */
+    --feature-card-bg: rgba(255, 255, 255, 0.08); /* Transparent white for feature cards */
+    --blue-button-bg: #4a90e2; /* Example blue, could be adjusted for dark theme */
+    --shadow-light: 0 4px 12px rgba(0, 0, 0, 0.3); /* Darker shadow for dark theme */
+    
+    /* New gradient colors for dark theme, if needed */
+    --container-a-gradient-from: #1a1e27;
+    --container-a-gradient-to: #11141b;
+    --container-b-bg: var(--grey-black-bottom);
+
+    --light-grey: #abb2bf;
+    --student-blue: #61afef;
+    --teacher-green: #98c379;
+}
+
+/* Base styles for body */
+body {
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+    background-color: var(--dark-navy-background); /* Dark background */
+    color: var(--text-light-grey); /* Light text color */
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    margin-top: 0;
+    margin-bottom: 0.5em;
+}
+
+p {
+    margin-top: 0;
+    margin-bottom: 1em;
+}
+
+button {
+    cursor: pointer;
+    border: none;
+    background: none;
+    color: inherit;
+    padding: 0;
+    font: inherit;
+}
