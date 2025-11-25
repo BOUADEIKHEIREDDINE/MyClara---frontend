@@ -9,27 +9,53 @@
 </head>
 <body>
     <div class="container module-container">
-        <div class="module-card">
-            <h1 class="module-title">Create a Module</h1>
+        <div class="module-layout">
+            <section class="module-editor">
+                <div class="section-heading">
+                    <h1 class="module-title">Create a Module</h1>
+                    <p class="module-subtitle">Name your module, upload its files, finish it, then move on to the next.</p>
+                </div>
 
-            <div class="form-group">
-                <label for="module-name">Module Name</label>
-                <input type="text" id="module-name" placeholder="e.g., Introduction to Algebra">
-            </div>
+                <div class="form-group">
+                    <label for="module-name">Module Name</label>
+                    <input type="text" id="module-name" placeholder="e.g., Introduction to Algebra">
+                </div>
 
-            <div class="upload-area" id="upload-area">
-                <img src="assets/icons/upload.svg" alt="Upload Icon" class="upload-icon">
-                <p>Drop your file here or click to upload</p>
-                <input type="file" id="file-input" style="display: none;">
-            </div>
+                <div class="current-files">
+                    <div class="current-files-header">
+                        <h2>Files in this module</h2>
+                        <span id="current-file-count" class="chip">0 files</span>
+                    </div>
+                    <div id="current-module-files" class="current-files-list empty-state">
+                        <p>Add files to see them here.</p>
+                    </div>
+                </div>
 
-            <div class="uploaded-files-section">
-                <h2>Uploaded Files</h2>
-                <ul id="uploaded-files-list" class="file-list"></ul>
-            </div>
+                <div class="upload-area" id="module-dropzone">
+                    <img src="assets/icons/upload.svg" alt="Upload Icon" class="upload-icon">
+                    <p>Drop files here or use the button below</p>
+                    <input type="file" id="module-file-input" multiple style="display: none;">
+                </div>
 
-            <button class="btn primary-btn validate-btn hidden-onload" id="validate-modules-btn">Validate Modules</button>
+                <div class="module-editor-actions">
+                    <button class="btn primary-btn" id="finish-module-btn" disabled>Finish Module &amp; Add Another</button>
+                </div>
+            </section>
+
+            <section class="signed-modules">
+                <div class="signed-modules-header">
+                    <div>
+                        <h2>Signed Modules</h2>
+                        <p>Finished modules appear here with their files.</p>
+                    </div>
+                    <button class="btn accent-btn" id="validate-modules-btn" disabled>Validate All Modules</button>
+                </div>
+                <div id="modules-list" class="modules-list empty-state">
+                    <p>No modules yet. Finish your first module to see it here.</p>
+                </div>
+            </section>
         </div>
+        <input type="file" id="existing-module-file-input" multiple style="display: none;">
     </div>
     <script src="assets/scripts/main.js"></script>
     <script src="assets/scripts/indexeddb.js"></script>

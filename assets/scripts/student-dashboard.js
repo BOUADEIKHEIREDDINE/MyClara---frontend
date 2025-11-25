@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
     const moduleList = document.getElementById('module-list');
     const addModuleBtn = document.getElementById('add-module-btn');
+    const modifyModulesBtn = document.getElementById('modify-modules-btn');
     const mainContentDefault = document.getElementById('main-content-default');
     const mainContentModule = document.getElementById('main-content-module');
     const moduleContentTitle = document.getElementById('module-content-title');
@@ -69,7 +70,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <img src="assets/icons/module.svg" alt="Module Icon" class="module-icon">
                     <span class="module-name">${moduleName}</span>
                 </div>
-                ${moduleFiles.map(file => `<span class="module-file-name">${file.fileName}</span>`).join('')}
             `;
             moduleList.appendChild(li);
 
@@ -100,6 +100,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (addModuleBtn) {
         addModuleBtn.addEventListener('click', () => {
             window.location.href = 'student-create-module.html';
+        });
+    }
+
+    if (modifyModulesBtn) {
+        modifyModulesBtn.addEventListener('click', () => {
+            window.location.href = 'student-manage-modules.html';
         });
     }
 

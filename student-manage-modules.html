@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyClara - Modify Modules</title>
+    <link rel="stylesheet" href="assets/styles/global.css">
+    <link rel="stylesheet" href="assets/styles/student-manage-modules.css">
+</head>
+<body>
+    <div class="manage-modules-container">
+        <header class="manage-header">
+            <div>
+                <p class="eyebrow">Workspace Tools</p>
+                <h1>Modify Modules</h1>
+                <p class="subtitle">Open a module to review files, upload more, or tidy things up.</p>
+            </div>
+            <div class="header-actions">
+                <button class="ghost-btn" id="back-to-dashboard-btn">Back to Dashboard</button>
+                <button class="primary-btn" id="create-new-module-btn">Create New Module</button>
+            </div>
+        </header>
+
+        <section class="module-cards-section">
+            <div id="manage-modules-list" class="modules-list empty-state">
+                <p>No modules yet. Create one to get started.</p>
+            </div>
+        </section>
+    </div>
+
+    <input type="file" id="manage-module-file-input" multiple style="display:none;">
+
+    <script src="assets/scripts/indexeddb.js"></script>
+    <script src="assets/scripts/student-manage-modules.js"></script>
+</body>
+</html>
+

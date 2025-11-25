@@ -70,6 +70,7 @@ body {
     width: 100%;
     flex-grow: 1;
     overflow-y: auto;
+    margin-top: 20px;
 }
 
 .module-item {
@@ -88,7 +89,6 @@ body {
 
 .module-item:hover {
     background-color: rgba(255, 255, 255, 0.15);
-    transform: translateY(-2px);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
 }
 
@@ -117,18 +117,41 @@ body {
 .module-text {
     display: flex;
     align-items: center;
+    justify-content: center;
+    gap: 10px;
     width: 100%;
     margin-bottom: 4px;
+    text-align: center;
 }
 
 .module-name {
-    font-size: 0.95rem;
+    font-size: 1.2rem;
     font-weight: 600;
     color: var(--module-text-dark);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+.modify-modules-btn {
+    width: calc(100% - 40px);
+    margin: 20px auto 0;
+    padding: 12px 18px;
+    border-radius: 12px;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-light-grey);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.modify-modules-btn:hover {
+    background-color: rgba(255, 255, 255, 0.18);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
 
 .module-file-name {
     font-size: 0.8rem;
@@ -142,7 +165,7 @@ body {
 .module-content-title {
     font-size: 2rem;
     font-weight: 700;
-    color: #1b1b1f;
+    color: #ffffff;
     margin-bottom: 15px;
 }
 
@@ -218,11 +241,12 @@ body {
     justify-content: space-between;
     align-items: center;
     padding: 0 50px;
-    gap: 300px;
+    gap: 50px;
     height: 100%;
 }
 
 .learning-mode-btn {
+    width: 350px;
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -231,19 +255,19 @@ body {
     height: 90px;
     padding: 15px 30px;
     background: rgba(255,255,255,0.08);
-    border-radius: 45px;
+    border-radius: 10px;
     box-shadow: var(--shadow-light);
     transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, background 0.2s ease-out, border-color 0.2s ease-out;
     cursor: pointer;
     text-align: center;
-    border: 1px solid rgba(255,255,255,0.15);
+    border: 1px solid rgba(17, 34, 64, 0.6);
 }
 
 .learning-mode-btn:hover:not(:disabled) {
     transform: translateY(-3px);
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
-    background: rgba(255,255,255,0.15);
-    border-color: rgba(255,255,255,0.25);
+    background: rgba(17, 34, 64, 0.25);
+    border-color: rgba(17, 34, 64, 0.85);
 }
 
 .learning-mode-btn:active:not(:disabled) {
@@ -287,6 +311,7 @@ body {
         height: 80px;
         padding: 10px 20px;
         border-radius: 40px;
+        border-color: rgba(17, 34, 64, 0.6);
     }
 
     .learning-mode-btn img.learning-mode-icon {
@@ -313,6 +338,7 @@ body {
         height: 70px;
         padding: 10px 15px;
         border-radius: 35px;
+        border-color: rgba(17, 34, 64, 0.6);
     }
 
     .learning-mode-btn img.learning-mode-icon {
