@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyClara - Teacher Dashboard</title>
+    <link rel="stylesheet" href="assets/styles/global.css">
+    <link rel="stylesheet" href="assets/styles/teacher-dashboard.css">
+</head>
+<body>
+    <div class="containerA">
+        <h2 class="sidebar-title">My Classes</h2>
+        <button class="add-module-btn" id="add-module-btn">
+            <img src="assets/icons/add.svg" alt="Add Module Icon">
+            <span>Add Class</span>
+        </button>
+        <ul id="module-list" class="module-list">
+            <!-- Classes will be dynamically loaded here by JavaScript -->
+        </ul>
+        <button class="modify-modules-btn" id="modify-modules-btn">
+            Modify Classes
+        </button>
+    </div>
+
+    <div class="containerC">
+        <div id="main-content-default" class="main-content-default">
+            <h1 class="main-title">Guide your class with MyClara</h1>
+            <p class="main-subtitle">Select a class from the left and choose a teaching tool below</p>
+        </div>
+        <div id="main-content-module" class="main-content-module" style="display: none;">
+            <h1 id="module-content-title" class="module-content-title"></h1>
+            <p class="module-content-placeholder">Class content goes here</p>
+        </div>
+    </div>
+
+    <div class="containerB">
+        <div class="bottom-buttons-wrapper">
+            <button class="learning-mode-btn" id="ai-chat-btn" disabled>
+                <img src="assets/icons/ai-chat.svg" alt="AI Chatbot Icon" class="learning-mode-icon">
+                <span>AI Chatbot</span>
+            </button>
+            <button class="learning-mode-btn" id="exercises-btn" disabled>
+                <img src="assets/icons/exercises.svg" alt="Exercises Icon" class="learning-mode-icon">
+                <span>Exercises</span>
+            </button>
+            <button class="learning-mode-btn" id="lesson-schematiser-btn" disabled>
+                <img src="assets/icons/lesson-schematiser.svg" alt="Lesson Schematiser Icon" class="learning-mode-icon">
+                <span>Lesson Schematiser</span>
+            </button>
+        </div>
+    </div>
+
+    <script src="assets/scripts/indexeddb.js"></script> <!-- Re-added indexeddb.js -->
+    <script src="assets/scripts/teacher-dashboard.js"></script>
+</body>
+</html>

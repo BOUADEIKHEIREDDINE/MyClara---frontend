@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (teacherBtn) {
         teacherBtn.addEventListener('click', () => {
             console.log("Selected: Teacher");
+            window.location.href = 'teacher-login.html';
         });
     }
 

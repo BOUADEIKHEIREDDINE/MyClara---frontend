@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyClara - Create Class</title>
+    <link rel="stylesheet" href="assets/styles/global.css">
+    <link rel="stylesheet" href="assets/styles/teacher-create-class.css">
+</head>
+<body>
+    <div class="container module-container">
+        <div class="module-layout">
+            <section class="module-editor">
+                <div class="section-heading">
+                    <h1 class="module-title">Create a Class</h1>
+                    <p class="module-subtitle">Name your teaching module, attach class resources, and keep everything organized.</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="teaching-module-name">Teaching Module</label>
+                    <input type="text" id="teaching-module-name" placeholder="e.g., Algebra II Curriculum">
+                </div>
+
+                <div class="form-group">
+                    <label for="class-name">Class Name</label>
+                    <input type="text" id="class-name" placeholder="e.g., Period 2 - Advanced Algebra">
+                </div>
+
+                <div class="class-inline-actions">
+                    <button class="btn outline-btn" id="add-students-btn" type="button">Add Students</button>
+                </div>
+
+                <div class="current-files">
+                    <div class="current-files-header">
+                        <h2>Files for this class</h2>
+                        <span id="current-file-count" class="chip">0 files</span>
+                    </div>
+                    <div id="current-module-files" class="current-files-list empty-state">
+                        <p>Add files to see them here.</p>
+                    </div>
+                </div>
+
+                <div class="upload-area" id="module-dropzone">
+                    <img src="assets/icons/upload.svg" alt="Upload Icon" class="upload-icon">
+                    <p>Drop files here or use the button below</p>
+                    <input type="file" id="module-file-input" multiple style="display: none;">
+                </div>
+
+                <div class="module-editor-actions">
+                    <button class="btn primary-btn" id="finish-class-btn" disabled>Finish Class &amp; Publish</button>
+                </div>
+            </section>
+
+            <section class="signed-modules">
+                <div class="signed-modules-header">
+                    <div>
+                        <h2>Published Classes</h2>
+                        <p>Each completed class appears here with all attached files.</p>
+                    </div>
+                    <button class="btn accent-btn" id="validate-modules-btn" disabled>Validate All Classes</button>
+                </div>
+                <div id="modules-list" class="modules-list empty-state">
+                    <p>No classes yet. Wrap up your first class to see it here.</p>
+                </div>
+            </section>
+        </div>
+        <input type="file" id="existing-module-file-input" multiple style="display: none;">
+    </div>
+    <script src="assets/scripts/main.js"></script>
+    <script src="assets/scripts/indexeddb.js"></script>
+    <script src="assets/scripts/teacher-create-class.js"></script>
+</body>
+</html>
