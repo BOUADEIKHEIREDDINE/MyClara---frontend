@@ -1,50 +1,59 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const loginTab = document.getElementById('login-tab');
-    const signupTab = document.getElementById('signup-tab');
     const loginSubmitBtn = document.getElementById('login-submit-btn');
+    const goToSignupBtn = document.getElementById('go-to-signup-btn');
     const emailInput = document.getElementById('email');
+
+    const API_BASE_URL = 'http://localhost/myclara-api';
+
+    async function handleStudentLogin() {
+        const email = emailInput.value.trim();
+        const password = document.getElementById('password').value;
+
+        if (!email || !password) {
+            console.log('Email and password are required.');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/login.php`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            const data = await response.json();
+
+            if (!response.ok || data.error) {
+                console.error('Login error:', data.error || response.statusText);
+                alert('Login failed. Check your email and password.');
+                return;
+            }
+
+            if (data.userType !== 'Student') {
+                alert('This account is not a student account.');
+                return;
+            }
+
+            localStorage.setItem('currentUserId', data.userId);
+            localStorage.setItem('currentUserEmail', data.email);
+            localStorage.setItem('currentUserType', data.userType);
+
+            console.log('Student login successful');
+            window.location.href = 'student-create-module.html';
+        } catch (err) {
+            console.error('Network or server error:', err);
+            alert('Unable to contact the server. Is XAMPP running?');
+        }
+    }
 
     if (loginSubmitBtn) {
         loginSubmitBtn.addEventListener('click', () => {
-            const email = emailInput.value.trim();
-            const password = document.getElementById('password').value;
-
-            if (email !== '') {
-                console.log("Student login submitted");
-                localStorage.setItem('currentUserEmail', email);
-                localStorage.setItem('currentUserPassword', password);
-                window.location.href = 'student-create-module.html';
-            } else {
-                console.log("Email field cannot be empty.");
-                // Optionally add visual feedback for empty email
-            }
+            handleStudentLogin();
         });
     }
 
-    if (signupTab) {
-        signupTab.addEventListener('click', () => {
-            console.log("Switch to sign up tab");
-            const email = emailInput.value.trim();
-            const password = document.getElementById('password').value;
-            localStorage.setItem('currentUserEmail', email);
-            localStorage.setItem('currentUserPassword', password);
-            window.location.href = 'student-create-module.html'; // Redirect for signup as well
-            // Visual update for active tab would go here
-            signupTab.classList.add('active');
-            if (loginTab) {
-                loginTab.classList.remove('active');
-            }
-        });
-    }
-
-    if (loginTab) {
-        loginTab.addEventListener('click', () => {
-            console.log("Switch to login tab");
-            // Visual update for active tab would go here
-            loginTab.classList.add('active');
-            if (signupTab) {
-                signupTab.classList.remove('active');
-            }
+    if (goToSignupBtn) {
+        goToSignupBtn.addEventListener('click', () => {
+            window.location.href = 'student-signup.html';
         });
     }
 });

@@ -110,6 +110,22 @@
     transform: scale(0.97);
 }
 
+.secondary-btn {
+    width: 100%;
+    padding: 12px 25px;
+    border-radius: 50px;
+    font-size: 1em;
+    font-weight: 500;
+    color: var(--text-dark);
+    background-color: var(--secondary-gray);
+    transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.secondary-btn:hover {
+    background-color: #d1d1de;
+    transform: scale(1.01);
+}
+
 /* Entry Animation */
 @keyframes fadeInSlideUp {
     from {

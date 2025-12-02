@@ -446,7 +446,14 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCurrentClassFiles();
     refreshPublishedClasses();
 });
+
 document.addEventListener('DOMContentLoaded', () => {
+    // ===== Backend API config (XAMPP / PHP) =====
+    // Adjust this URL to match your local API folder, e.g. http://localhost/myclara-api
+    const API_BASE_URL = 'http://localhost/myclara-api';
+    // Flip this flag to false if you want to fall back to the old IndexedDB-only behaviour
+    const USE_BACKEND_API_FOR_MODULES = true;
+
     const moduleNameInput = document.getElementById('module-name');
     const moduleDropzone = document.getElementById('module-dropzone');
     const moduleFileInput = document.getElementById('module-file-input');
@@ -557,6 +564,40 @@ document.addEventListener('DOMContentLoaded', () => {
         moduleFileInput.value = '';
     }
 
+    // ===== Helper: upload a module and its files to the PHP backend =====
+    async function uploadModuleToBackend(module, creatorUserId) {
+        if (!API_BASE_URL) {
+            throw new Error('API_BASE_URL is not configured');
+        }
+
+        const formData = new FormData();
+        formData.append('moduleName', module.name);
+        formData.append('creatorUserId', creatorUserId || '');
+        // Optionally: add description or other metadata later
+
+        module.files.forEach((file) => {
+            // The backend can read this as $_FILES['files']['name'][i] ...
+            formData.append('files[]', file);
+        });
+
+        const response = await fetch(`${API_BASE_URL}/create_module_with_files.php`, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            throw new Error(`Backend error: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json().catch(() => ({}));
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+        // Expect something like { success: true, moduleId: 123 }
+        return data;
+    }
+
     async function addFilesToExistingModule(moduleName, fileList) {
         if (!moduleName || !fileList.length) {
             return;
@@ -609,15 +650,22 @@ document.addEventListener('DOMContentLoaded', () => {
         finishModuleBtn.disabled = true;
 
         try {
-            const saveOperations = currentModule.files.map(file => saveStudentFile({
-                email: currentUserEmail,
-                moduleName: currentModule.name,
-                fileName: file.name,
-                fileBlob: file,
-                createdAt: new Date(),
-                size: file.size
-            }));
-            await Promise.all(saveOperations);
+            if (USE_BACKEND_API_FOR_MODULES) {
+                // New path: send module + files to the PHP backend (MySQL)
+                const creatorUserId = localStorage.getItem('currentUserId');
+                await uploadModuleToBackend(currentModule, creatorUserId);
+            } else {
+                // Legacy path: keep saving in IndexedDB only
+                const saveOperations = currentModule.files.map(file => saveStudentFile({
+                    email: currentUserEmail,
+                    moduleName: currentModule.name,
+                    fileName: file.name,
+                    fileBlob: file,
+                    createdAt: new Date(),
+                    size: file.size
+                }));
+                await Promise.all(saveOperations);
+            }
             localStorage.setItem(CREATED_MODULE_KEY, currentModule.name);
             resetCurrentModule();
             await refreshSignedModules();
