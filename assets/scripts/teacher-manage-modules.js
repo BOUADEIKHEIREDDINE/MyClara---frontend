@@ -48,7 +48,6 @@ document.addEventListener('DOMContentLoaded', () => {
             await refreshModules();
         } catch (error) {
             console.error('Failed to add files to module:', error);
-            alert('Could not add files to this module.');
         }
     }
 
@@ -59,7 +58,6 @@ document.addEventListener('DOMContentLoaded', () => {
             await refreshModules();
         } catch (error) {
             console.error('Failed to delete file:', error);
-            alert('Could not delete the file.');
         }
     }
 
@@ -70,7 +68,6 @@ document.addEventListener('DOMContentLoaded', () => {
             await refreshModules();
         } catch (error) {
             console.error('Failed to delete module:', error);
-            alert('Could not delete the module.');
         }
     }
 

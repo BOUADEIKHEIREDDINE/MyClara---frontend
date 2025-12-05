@@ -16,6 +16,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    const API_BASE_URL = 'http://localhost/myclara-api';
+
     let currentModule = {
         name: '',
         files: []
@@ -39,7 +41,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateCurrentModuleName() {
         currentModule.name = moduleNameInput.value.trim();
-        finishModuleBtn.disabled = !(currentModule.name && currentModule.files.length);
+        // Activer le bouton dès qu'il y a un nom de module (pas besoin de fichiers)
+        finishModuleBtn.disabled = !currentModule.name;
+        
+        // Activer "Validate All Modules" si on a un module en cours
+        if (validateModulesBtn) {
+            const hasCurrentModule = currentModule.name && currentModule.files.length > 0;
+            validateModulesBtn.disabled = !(hasCurrentModule || signedModules.length > 0);
+        }
     }
 
     moduleNameInput.addEventListener('input', updateCurrentModuleName);
@@ -105,6 +114,60 @@ document.addEventListener('DOMContentLoaded', () => {
         renderCurrentModuleFiles();
         updateCurrentModuleName();
         moduleFileInput.value = '';
+        
+        // Activer "Validate All Modules" quand on ajoute des fichiers
+        if (validateModulesBtn && currentModule.name) {
+            validateModulesBtn.disabled = false;
+        }
+    }
+
+    async function uploadFilesToExistingModule(moduleName, moduleId, fileList) {
+        if (!API_BASE_URL) {
+            throw new Error('API_BASE_URL is not configured');
+        }
+
+        const formData = new FormData();
+        formData.append('moduleName', moduleName);
+        formData.append('moduleId', moduleId);
+
+        if (fileList.length === 0) {
+            throw new Error('No files to upload');
+        }
+
+        Array.from(fileList).forEach((file) => {
+            formData.append('files[]', file);
+            formData.append('fileNames[]', file.name);
+        });
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/add_files_to_module.php`, {
+                method: 'POST',
+                body: formData
+            });
+
+            const responseText = await response.text();
+            console.log('Backend response:', responseText);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${responseText.substring(0, 200)}`);
+            }
+
+            const data = JSON.parse(responseText);
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            if (!data.success) {
+                throw new Error('Backend did not return success');
+            }
+
+            return data;
+        } catch (err) {
+            if (err instanceof SyntaxError) {
+                throw new Error('Backend returned invalid JSON. Response: ' + err.message);
+            }
+            throw err;
+        }
     }
 
     async function addFilesToExistingModule(moduleName, fileList) {
@@ -112,18 +175,27 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         try {
-            await Promise.all(Array.from(fileList).map(file => saveStudentFile({
-                email: currentUserEmail,
-                moduleName,
-                fileName: file.name,
-                fileBlob: file,
-                createdAt: new Date(),
-                size: file.size
-            })));
+            // Try to find the module in signedModules to get moduleId
+            const module = signedModules.find(m => m.name === moduleName);
+            
+            // If module has moduleId, use backend API
+            if (module && module.moduleId) {
+                await uploadFilesToExistingModule(moduleName, module.moduleId, fileList);
+            } else {
+                // Fallback to IndexedDB if no moduleId (legacy)
+                await Promise.all(Array.from(fileList).map(file => saveStudentFile({
+                    email: currentUserEmail,
+                    moduleName,
+                    fileName: file.name,
+                    fileBlob: file,
+                    createdAt: new Date(),
+                    size: file.size
+                })));
+            }
             await refreshSignedModules();
         } catch (error) {
             console.error('Error adding files to module:', error);
-            alert('Failed to add files to this module.');
+            showWarning('Failed to add files to this module.');
         }
     }
 
@@ -151,30 +223,68 @@ document.addEventListener('DOMContentLoaded', () => {
             handleCurrentModuleFiles(event.target.files);
         }
     });
+    // ===== Helper: save module name to PHP backend (EXACTEMENT comme signup) =====
+    async function saveModuleNameToBackend(moduleName, creatorUserId) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/create_module.php`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    moduleName: moduleName.trim(),
+                    creatorUserId: parseInt(creatorUserId)
+                })
+            });
+
+            let data = null;
+            try {
+                data = await res.json();
+            } catch (jsonErr) {
+                // If response is not JSON, capture raw text for debugging
+                const text = await res.text();
+                console.error(`Module creation failed (status ${res.status}). Raw response: ${text}`);
+                throw new Error(`Invalid JSON response: ${text}`);
+            }
+
+            if (!res.ok || (data && data.error)) {
+                console.error(data && data.error ? data.error : `Module creation failed (status ${res.status})`);
+                throw new Error(data && data.error ? data.error : 'Module creation failed');
+            }
+
+            return data;
+        } catch (e) {
+            console.error(e);
+            throw new Error('Server error during module creation: ' + e.message);
+        }
+    }
+
     async function persistCurrentModule() {
         if (!currentModule.name || currentModule.files.length === 0) {
             showWarning('Provide a module name and at least one file.');
             return;
         }
+        
         finishModuleBtn.disabled = true;
+        finishModuleBtn.textContent = 'Saving...';
 
         try {
-            const saveOperations = currentModule.files.map(file => saveStudentFile({
-                email: currentUserEmail,
-                moduleName: currentModule.name,
-                fileName: file.name,
-                fileBlob: file,
-                createdAt: new Date(),
-                size: file.size
-            }));
-            await Promise.all(saveOperations);
+            const creatorUserId = localStorage.getItem('currentUserId');
+            
+            if (!creatorUserId || creatorUserId === 'null' || creatorUserId === '0') {
+                window.location.href = 'student-login.html';
+                return;
+            }
+
+            // Save module name to MySQL (like signup - JSON)
+            const result = await saveModuleNameToBackend(currentModule.name, creatorUserId);
+
             localStorage.setItem('newlyCreatedModuleName', currentModule.name);
             resetCurrentModule();
             await refreshSignedModules();
         } catch (error) {
-            console.error('Error saving module files:', error);
-            alert('Failed to save module files. Please try again.');
+            console.error('Error saving module:', error);
+            showWarning('Failed to save module. Please try again.');
             finishModuleBtn.disabled = false;
+            finishModuleBtn.textContent = 'Finish Module & Add Another';
         }
     }
 
@@ -187,7 +297,70 @@ document.addEventListener('DOMContentLoaded', () => {
         finishModuleBtn.disabled = true;
     }
 
-    finishModuleBtn.addEventListener('click', persistCurrentModule);
+    // Bouton "Finish Module & Add Another" - sauvegarde le module (EXACTEMENT comme signup)
+    finishModuleBtn.addEventListener('click', async () => {
+        const moduleName = moduleNameInput.value.trim();
+        
+        if (!moduleName) {
+            showWarning('Please enter a module name.');
+            return;
+        }
+
+        const creatorUserId = localStorage.getItem('currentUserId');
+        if (!creatorUserId) {
+            window.location.href = 'student-login.html';
+            return;
+        }
+
+        finishModuleBtn.disabled = true;
+        finishModuleBtn.textContent = 'Saving...';
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/create_module.php`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    moduleName: moduleName,
+                    creatorUserId: parseInt(creatorUserId)
+                })
+            });
+
+            let data = null;
+            try {
+                data = await res.json();
+            } catch (jsonErr) {
+                const text = await res.text();
+                console.error(`Module creation failed (status ${res.status}). Raw response: ${text}`);
+                showWarning('Failed to save module. Please try again.');
+                finishModuleBtn.disabled = false;
+                finishModuleBtn.textContent = 'Finish Module & Add Another';
+                return;
+            }
+
+            if (!res.ok || (data && data.error)) {
+                console.error(data && data.error ? data.error : `Module creation failed (status ${res.status})`);
+                showWarning(data && data.error ? data.error : 'Failed to save module. Please try again.');
+                finishModuleBtn.disabled = false;
+                finishModuleBtn.textContent = 'Finish Module & Add Another';
+                return;
+            }
+
+            // SUCCESS - module sauvegardé
+            moduleNameInput.value = '';
+            currentModule.name = '';
+            currentModule.files = [];
+            renderCurrentModuleFiles();
+            await refreshSignedModules(); // Recharger la liste des modules
+            
+            finishModuleBtn.disabled = true;
+            finishModuleBtn.textContent = 'Finish Module & Add Another';
+        } catch (e) {
+            console.error(e);
+            showWarning('Server error during module creation.');
+            finishModuleBtn.disabled = false;
+            finishModuleBtn.textContent = 'Finish Module & Add Another';
+        }
+    });
 
     function groupFilesByModule(files) {
         const grouped = {};
@@ -214,15 +387,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (signedModules.length === 0) {
             modulesList.classList.add('empty-state');
             modulesList.innerHTML = '<p>No modules yet. Finish your first module to see it here.</p>';
-            validateModulesBtn.disabled = true;
-            return;
+        } else {
+            modulesList.classList.remove('empty-state');
+            signedModules.forEach(module => {
+                modulesList.appendChild(createModuleCard(module));
+            });
         }
-
-        modulesList.classList.remove('empty-state');
-        signedModules.forEach(module => {
-            modulesList.appendChild(createModuleCard(module));
-        });
-        validateModulesBtn.disabled = false;
+        
+        // Activer le bouton si on a un module en cours OU des modules sauvegardés
+        const hasCurrentModule = currentModule.name && currentModule.files.length > 0;
+        validateModulesBtn.disabled = !(hasCurrentModule || signedModules.length > 0);
     }
 
     function createModuleCard(module) {
@@ -256,42 +430,51 @@ document.addEventListener('DOMContentLoaded', () => {
         const fileList = document.createElement('ul');
         fileList.className = 'module-file-list';
 
-        module.files.forEach(file => {
-            const item = document.createElement('li');
-            item.className = 'module-file-item';
+        if (module.files && module.files.length > 0) {
+            module.files.forEach(file => {
+                const item = document.createElement('li');
+                item.className = 'module-file-item';
 
-            const details = document.createElement('div');
-            details.className = 'module-file-details';
+                const details = document.createElement('div');
+                details.className = 'module-file-details';
 
-            const icon = document.createElement('div');
-            icon.className = 'file-type-icon';
-            icon.textContent = getFileBadgeLabel(file.fileName);
+                const icon = document.createElement('div');
+                icon.className = 'file-type-icon';
+                icon.textContent = getFileBadgeLabel(file.fileName);
 
-            const info = document.createElement('div');
-            info.className = 'module-file-info';
-            info.innerHTML = `
-                <p class="module-file-name">${file.fileName}</p>
-                <p class="module-file-meta">${formatFileSize(file.size)}</p>
-            `;
+                const info = document.createElement('div');
+                info.className = 'module-file-info';
+                info.innerHTML = `
+                    <p class="module-file-name">${file.fileName}</p>
+                    <p class="module-file-meta">${formatFileSize(file.size || 0)}</p>
+                `;
 
-            details.append(icon, info);
+                details.append(icon, info);
 
-            const actions = document.createElement('div');
-            actions.className = 'module-file-actions';
+                const actions = document.createElement('div');
+                actions.className = 'module-file-actions';
 
-            const removeBtn = document.createElement('button');
-            removeBtn.className = 'ghost-btn';
-            removeBtn.type = 'button';
-            removeBtn.textContent = 'Remove';
-            removeBtn.addEventListener('click', (event) => {
-                event.stopPropagation();
-                deleteSingleFile(file.id);
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'ghost-btn';
+                removeBtn.type = 'button';
+                removeBtn.textContent = 'Remove';
+                removeBtn.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    deleteSingleFile(file.id);
+                });
+
+                actions.appendChild(removeBtn);
+                item.append(details, actions);
+                fileList.appendChild(item);
             });
-
-            actions.appendChild(removeBtn);
-            item.append(details, actions);
-            fileList.appendChild(item);
-        });
+        } else {
+            // Show empty state if no files
+            const emptyItem = document.createElement('li');
+            emptyItem.className = 'module-file-item';
+            emptyItem.style.cssText = 'padding: 15px; color: #858596; text-align: center;';
+            emptyItem.textContent = 'No files in this module yet.';
+            fileList.appendChild(emptyItem);
+        }
 
         const actionsRow = document.createElement('div');
         actionsRow.className = 'module-card-actions';
@@ -384,11 +567,44 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         try {
+            // Try to delete from backend first (if it's a UUID from SQL)
+            if (typeof fileId === 'string' && fileId.length > 10) {
+                // Likely a UUID from SQL database
+                const response = await fetch(`${API_BASE_URL}/delete_file.php`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fileId: fileId })
+                });
+                if (response.ok) {
+                    await refreshSignedModules();
+                    return;
+                }
+            }
+            // Fallback to IndexedDB deletion
             await deleteFile(parseInt(fileId, 10));
             await refreshSignedModules();
         } catch (error) {
             console.error('Error deleting file:', error);
-            alert('Failed to delete file.');
+            showWarning('Failed to delete file.');
+        }
+    }
+
+    async function deleteModuleFromBackend(moduleId) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/delete_module.php`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ moduleId: moduleId })
+            });
+
+            const data = await response.json();
+            if (!response.ok || (data && data.error)) {
+                throw new Error(data && data.error ? data.error : 'Failed to delete module from database');
+            }
+            return data;
+        } catch (error) {
+            console.error('Error deleting module from backend:', error);
+            throw error;
         }
     }
 
@@ -399,34 +615,175 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const module = signedModules.find(m => m.name === moduleName);
             if (!module) return;
-            await Promise.all(module.files.map(file => deleteFile(file.id)));
+
+            // Delete from SQL database if moduleId exists
+            if (module.moduleId) {
+                await deleteModuleFromBackend(module.moduleId);
+            }
+
+            // Also delete files from IndexedDB if they exist there
+            if (module.files && module.files.length > 0) {
+                await Promise.all(module.files.map(file => deleteFile(file.id)));
+            }
+
             await refreshSignedModules();
         } catch (error) {
             console.error('Error deleting module:', error);
-            alert('Failed to delete module.');
+            showWarning('Failed to delete module.');
+        }
+    }
+
+    async function fetchFilesForModule(moduleId) {
+        if (!moduleId) {
+            return [];
+        }
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/list_module_files.php?moduleId=${moduleId}`);
+            
+            if (!res.ok) {
+                const errorText = await res.text();
+                console.error('Failed to fetch files for module:', res.status, errorText);
+                return [];
+            }
+
+            const data = await res.json();
+            
+            // Check if response is successful and has files array
+            if (data && data.success === true && Array.isArray(data.files)) {
+                return data.files.map(f => ({
+                    id: f.FileUUID || f.FileID || f.id,
+                    fileName: f.OriginalFilename || f.FileName || f.fileName || '',
+                    size: f.FileSize || f.size || 0,
+                    createdAt: f.CreatedAt || f.createdAt || new Date().toISOString(),
+                    fileType: f.FileType || f.fileType || ''
+                })).filter(f => f.fileName); // Filter out files without names
+            } else if (data && data.error) {
+                console.error('API returned error:', data.error);
+                return [];
+            } else {
+                // No files is not an error, just return empty array
+                return [];
+            }
+        } catch (error) {
+            console.error('Error fetching files for module:', error);
+            return [];
         }
     }
 
     async function refreshSignedModules() {
-        const files = await getAllFilesByEmail(currentUserEmail);
-        signedModules = groupFilesByModule(files);
+        // Charger les modules depuis MySQL (comme signup charge les users)
+        const creatorUserId = localStorage.getItem('currentUserId');
+        if (!creatorUserId) {
+            signedModules = [];
+            renderSignedModules();
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/list_student_modules.php?creatorUserId=${creatorUserId}`);
+            
+            if (!res.ok) {
+                const errorText = await res.text();
+                console.error('Failed to fetch modules:', res.status, errorText);
+                signedModules = [];
+                renderSignedModules();
+                return;
+            }
+
+            let data = null;
+            try {
+                data = await res.json();
+            } catch (jsonErr) {
+                console.error('Failed to parse modules list JSON:', jsonErr);
+                signedModules = [];
+                renderSignedModules();
+                return;
+            }
+
+            // Check if response is successful and has modules array
+            if (data && data.success === true && Array.isArray(data.modules)) {
+                // Convertir les modules de la DB en format attendu et charger les fichiers
+                signedModules = await Promise.all(data.modules.map(async (m) => {
+                    const moduleId = m.ModuleID || m.moduleId;
+                    const moduleName = m.ModuleName || m.name || '';
+                    
+                    if (!moduleId || !moduleName) {
+                        console.warn('Invalid module data:', m);
+                        return null;
+                    }
+                    
+                    const files = await fetchFilesForModule(moduleId);
+                    return {
+                        name: moduleName,
+                        moduleId: moduleId,
+                        files: files || []
+                    };
+                }));
+                
+                // Filter out any null modules
+                signedModules = signedModules.filter(m => m !== null);
+            } else if (data && data.error) {
+                console.error('API returned error:', data.error);
+                signedModules = [];
+            } else {
+                console.warn('Unexpected response format or no modules:', data);
+                signedModules = [];
+            }
+        } catch (e) {
+            console.error('Error loading modules:', e);
+            signedModules = [];
+        }
+
         renderSignedModules();
     }
 
     if (validateModulesBtn) {
-        validateModulesBtn.addEventListener('click', () => {
-            if (currentModule.files.length) {
-                showWarning('Finish the module you are working on before validating.');
-                return;
+        console.log('Validate button found, ID:', validateModulesBtn.id);
+        validateModulesBtn.addEventListener('click', async () => {
+            // Si il y a un module name, le sauvegarder dans la table modules
+            if (currentModule.name && currentModule.name.trim() !== '') {
+                try {
+                    const creatorUserId = localStorage.getItem('currentUserId');
+                    if (!creatorUserId) {
+                        window.location.href = 'student-login.html';
+                        return;
+                    }
+
+                    // Sauvegarder juste le nom du module (EXACTEMENT comme signup)
+                    const result = await saveModuleNameToBackend(currentModule.name, creatorUserId);
+                    
+                    // Réinitialiser le formulaire
+                    resetCurrentModule();
+                    
+                    // Attendre un peu avant de rediriger
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                } catch (error) {
+                    console.error('Failed to save module:', error);
+                    showWarning('Failed to save module. Please try again.');
+                    return; // Ne pas rediriger si la sauvegarde échoue
+                }
             }
-            if (signedModules.length === 0) {
+
+            // Vérifier qu'on a au moins un module sauvegardé
+            if (signedModules.length === 0 && (!currentModule.name || currentModule.files.length === 0)) {
                 showWarning('Create at least one module before validating.');
                 return;
             }
+
+            // Rediriger vers le dashboard
             window.location.href = 'student-dashboard.html';
         });
     }
 
     renderCurrentModuleFiles();
     refreshSignedModules();
+    
+    // Forcer l'activation du bouton "Validate All Modules" au chargement si on a déjà un module en cours
+    if (validateModulesBtn) {
+        const hasCurrentModule = currentModule.name && currentModule.files.length > 0;
+        if (hasCurrentModule) {
+            validateModulesBtn.disabled = false;
+        }
+    }
 });

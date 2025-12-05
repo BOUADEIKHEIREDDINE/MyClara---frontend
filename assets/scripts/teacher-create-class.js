@@ -18,16 +18,108 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    const API_BASE_URL = 'http://localhost/myclara-api';
     const CREATED_CLASS_KEY = 'teacherNewlyCreatedClassName';
 
     let currentClass = {
         teachingModule: '',
         name: '',
-        files: []
+        files: [],
+        enrollmentCode: '' // Code unique pour cette classe
     };
     let publishedClasses = [];
     let existingClassTarget = null;
     const classCardStates = {};
+
+    // Debug panel function
+    function showDebugInfo(message, type = 'info') {
+        const debugDiv = document.getElementById('debug-panel');
+        if (!debugDiv) return;
+
+        const p = document.createElement('p');
+        p.style.margin = '5px 0';
+        p.style.padding = '3px';
+        p.style.borderLeft = '3px solid';
+        
+        const timestamp = new Date().toLocaleTimeString();
+        const prefix = `[${timestamp}]`;
+        
+        switch(type) {
+            case 'error':
+                p.style.color = '#ff6b6b';
+                p.style.borderLeftColor = '#ff6b6b';
+                p.textContent = `${prefix} ❌ ${message}`;
+                break;
+            case 'success':
+                p.style.color = '#51cf66';
+                p.style.borderLeftColor = '#51cf66';
+                p.textContent = `${prefix} ✅ ${message}`;
+                break;
+            case 'warning':
+                p.style.color = '#ffd43b';
+                p.style.borderLeftColor = '#ffd43b';
+                p.textContent = `${prefix} ⚠️ ${message}`;
+                break;
+            default:
+                p.style.color = '#0f0';
+                p.style.borderLeftColor = '#0f0';
+                p.textContent = `${prefix} ${message}`;
+        }
+        
+        debugDiv.appendChild(p);
+        debugDiv.scrollTop = debugDiv.scrollHeight;
+        
+        // Keep only last 30 messages
+        while (debugDiv.children.length > 31) { // 30 + 1 header
+            debugDiv.removeChild(debugDiv.children[1]); // Remove second child (first is header)
+        }
+        
+        // Also log to console
+        if (type === 'error') {
+            console.error(message);
+        } else {
+            console.log(message);
+        }
+    }
+
+    // Fonction pour générer un code de classe unique (6 caractères alphanumériques)
+    function generateEnrollmentCode() {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let code = '';
+        for (let i = 0; i < 6; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
+    }
+
+    // Fonction pour afficher le code de classe à la place du bouton "Add Students"
+    function displayClassCode(code) {
+        const actionsDiv = document.querySelector('.class-inline-actions');
+        if (!actionsDiv) return;
+
+        actionsDiv.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background-color: #f0f0f0; border-radius: 8px;">
+                <div>
+                    <label style="font-size: 0.85em; color: #666; display: block; margin-bottom: 4px;">Class Enrollment Code</label>
+                    <strong style="font-size: 1.2em; letter-spacing: 2px; color: #2c3e50; font-family: monospace;">${code}</strong>
+                </div>
+                <button class="btn outline-btn" id="copy-code-btn" type="button" style="margin-left: auto;">Copy</button>
+            </div>
+        `;
+
+        // Ajouter fonctionnalité de copie
+        const copyBtn = document.getElementById('copy-code-btn');
+        if (copyBtn) {
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(code).then(() => {
+                    copyBtn.textContent = 'Copied!';
+                    setTimeout(() => {
+                        copyBtn.textContent = 'Copy';
+                    }, 2000);
+                });
+            });
+        }
+    }
 
     function showWarning(message) {
         const existingWarning = document.querySelector('.warning-message');
@@ -51,11 +143,8 @@ document.addEventListener('DOMContentLoaded', () => {
     teachingModuleInput.addEventListener('input', updateCurrentClassDetails);
     classNameInput.addEventListener('input', updateCurrentClassDetails);
 
-    if (addStudentsBtn) {
-        addStudentsBtn.addEventListener('click', () => {
-            alert('Student enrollment is coming soon.');
-        });
-    }
+    // Le bouton "Add Students" sera remplacé par le code de classe après création
+    // Pas besoin d'event listener pour l'instant
 
     function formatFileSize(bytes) {
         if (bytes === 0) return '0 KB';
@@ -144,6 +233,68 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // ===== Helper: create class and upload files to backend =====
+    async function createClassWithFiles(className, teachingModuleName, teacherId, files) {
+        if (!API_BASE_URL) {
+            throw new Error('API_BASE_URL is not configured');
+        }
+
+        if (!teacherId) {
+            throw new Error('teacherId is missing. Please login again.');
+        }
+
+        if (!teachingModuleName) {
+            throw new Error('teachingModuleName is required');
+        }
+
+        const formData = new FormData();
+        formData.append('className', className);
+        formData.append('teachingModuleName', teachingModuleName);
+        formData.append('teacherId', teacherId);
+
+        console.log('Sending class data:', { className, teachingModuleName, teacherId, fileCount: files.length });
+
+        if (files.length === 0) {
+            throw new Error('No files to upload');
+        }
+
+        files.forEach((file) => {
+            formData.append('files[]', file);
+            formData.append('fileNames[]', file.name);
+        });
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/create_class_with_files.php`, {
+                method: 'POST',
+                body: formData
+                // DO NOT set Content-Type header - browser sets it automatically with boundary for FormData
+            });
+
+            const responseText = await response.text();
+            console.log('Backend response:', responseText);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${responseText.substring(0, 200)}`);
+            }
+
+            const data = JSON.parse(responseText);
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            if (!data.success) {
+                throw new Error('Backend did not return success');
+            }
+
+            return data;
+        } catch (err) {
+            if (err instanceof SyntaxError) {
+                throw new Error('Backend returned invalid JSON. Response: ' + err.message);
+            }
+            throw err;
+        }
+    }
+
     async function persistCurrentClass() {
         if (!currentClass.teachingModule || !currentClass.name || currentClass.files.length === 0) {
             showWarning('Provide a teaching module, class name, and at least one file.');
@@ -152,35 +303,51 @@ document.addEventListener('DOMContentLoaded', () => {
         finishClassBtn.disabled = true;
 
         try {
-            const saveOperations = currentClass.files.map(file => saveStudentFile({
-                email: currentUserEmail,
-                moduleName: currentClass.name,
-                className: currentClass.name,
-                teachingModule: currentClass.teachingModule,
-                fileName: file.name,
-                fileBlob: file,
-                createdAt: new Date(),
-                size: file.size
-            }));
-            await Promise.all(saveOperations);
+            const teacherId = localStorage.getItem('currentUserId');
+            if (!teacherId) {
+                throw new Error('Not logged in. Please login again.');
+            }
+
+            // Générer un code unique pour cette classe
+            const enrollmentCode = generateEnrollmentCode();
+            currentClass.enrollmentCode = enrollmentCode;
+
+            // Create class + upload files to MySQL (with module linking)
+            const result = await createClassWithFiles(
+                currentClass.name,
+                currentClass.teachingModule,
+                teacherId,
+                currentClass.files
+            );
+            console.log('Class created successfully:', result);
+
+            // Afficher le code de classe à la place du bouton "Add Students"
+            displayClassCode(enrollmentCode);
+
             localStorage.setItem(CREATED_CLASS_KEY, currentClass.name);
             resetCurrentClass();
             await refreshPublishedClasses();
         } catch (error) {
             console.error('Error saving class files:', error);
-            alert('Failed to save class files. Please try again.');
+            alert('Failed to save class files: ' + (error.message || 'Unknown error'));
             finishClassBtn.disabled = false;
         }
     }
 
     function resetCurrentClass() {
-        currentClass = { teachingModule: '', name: '', files: [] };
+        currentClass = { teachingModule: '', name: '', files: [], enrollmentCode: '' };
         teachingModuleInput.value = '';
         classNameInput.value = '';
         classFileCount.textContent = '0 files';
         classFilesList.classList.add('empty-state');
         classFilesList.innerHTML = '<p>Add files to see them here.</p>';
         finishClassBtn.disabled = true;
+        
+        // Remettre le bouton "Add Students" (sera remplacé par le code quand une classe est créée)
+        const actionsDiv = document.querySelector('.class-inline-actions');
+        if (actionsDiv) {
+            actionsDiv.innerHTML = '<button class="btn outline-btn" id="add-students-btn" type="button">Add Students</button>';
+        }
     }
 
     finishClassBtn.addEventListener('click', persistCurrentClass);
@@ -199,6 +366,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderPublishedClasses() {
+        showDebugInfo('🔍 renderPublishedClasses() called');
+        showDebugInfo(`📊 publishedClasses.length: ${publishedClasses.length}`);
+        
         classesList.innerHTML = '';
         const classNames = new Set(publishedClasses.map(c => c.name));
         Object.keys(classCardStates).forEach(name => {
@@ -208,14 +378,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (publishedClasses.length === 0) {
+            showDebugInfo('⚠️ No classes found - showing empty state', 'warning');
             classesList.classList.add('empty-state');
             classesList.innerHTML = '<p>No classes yet. Finish your first class to see it here.</p>';
             validateClassesBtn.disabled = true;
             return;
         }
 
+        showDebugInfo(`✅ Rendering ${publishedClasses.length} classes`, 'success');
         classesList.classList.remove('empty-state');
         publishedClasses.forEach(cls => {
+            showDebugInfo(`📦 Creating card for class: ${cls.name} with ${cls.files?.length || 0} files`);
             classesList.appendChild(createClassCard(cls));
         });
         validateClassesBtn.disabled = false;
@@ -400,11 +573,27 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         try {
+            // Try to delete from backend first (if it's a UUID or numeric ID from SQL)
+            if (fileId) {
+                const response = await fetch(`${API_BASE_URL}/delete_file.php`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fileId: fileId })
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        await refreshPublishedClasses();
+                        return;
+                    }
+                }
+            }
+            // Fallback to IndexedDB deletion (for legacy files)
             await deleteFile(parseInt(fileId, 10));
             await refreshPublishedClasses();
         } catch (error) {
             console.error('Error deleting file:', error);
-            alert('Failed to delete file.');
+            showWarning('Failed to delete file.');
         }
     }
 
@@ -415,32 +604,160 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const cls = publishedClasses.find(c => c.name === className);
             if (!cls) return;
-            await Promise.all(cls.files.map(file => deleteFile(file.id)));
+
+            // If class has a classId, delete from SQL
+            if (cls.classId) {
+                const response = await fetch(`${API_BASE_URL}/delete_class.php`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ classId: cls.classId })
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        await refreshPublishedClasses();
+                        return;
+                    }
+                }
+            }
+
+            // Fallback: delete files individually (for legacy or if class deletion endpoint doesn't exist)
+            await Promise.all(cls.files.map(file => {
+                // Try SQL deletion first
+                return fetch(`${API_BASE_URL}/delete_file.php`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fileId: file.id })
+                }).catch(() => {
+                    // Fallback to IndexedDB
+                    return deleteFile(parseInt(file.id, 10));
+                });
+            }));
             await refreshPublishedClasses();
         } catch (error) {
             console.error('Error deleting class:', error);
-            alert('Failed to delete class.');
+            showWarning('Failed to delete class.');
         }
     }
 
     async function refreshPublishedClasses() {
-        const files = await getAllFilesByEmail(currentUserEmail);
-        publishedClasses = groupFilesByClass(files);
-        renderPublishedClasses();
+        showDebugInfo('🔄 refreshPublishedClasses() called');
+        try {
+            const teacherId = localStorage.getItem('currentUserId');
+            showDebugInfo(`👤 Teacher ID from localStorage: ${teacherId}`);
+            
+            if (!teacherId) {
+                showDebugInfo('❌ No teacher ID found in localStorage', 'error');
+                publishedClasses = [];
+                renderPublishedClasses();
+                return;
+            }
+
+            // Fetch classes from SQL
+            const url = `${API_BASE_URL}/list_teacher_classes.php?teacherId=${teacherId}`;
+            showDebugInfo(`🌐 Fetching from URL: ${url}`);
+            
+            const response = await fetch(url);
+            showDebugInfo(`📡 Response status: ${response.status} ${response.statusText}`);
+            
+            if (!response.ok) {
+                const responseText = await response.text();
+                showDebugInfo(`❌ Response not OK. Response text: ${responseText.substring(0, 200)}`, 'error');
+                throw new Error(`HTTP ${response.status}: Failed to fetch classes`);
+            }
+
+            const responseText = await response.text();
+            showDebugInfo(`📄 Raw response length: ${responseText.length} chars`);
+            showDebugInfo(`📄 Raw response preview: ${responseText.substring(0, 300)}`);
+            
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                showDebugInfo(`❌ JSON parse error: ${parseError.message}`, 'error');
+                showDebugInfo(`❌ Response text that failed: ${responseText.substring(0, 500)}`, 'error');
+                throw new Error('Invalid JSON response from server');
+            }
+            
+            showDebugInfo(`📦 Parsed data keys: ${Object.keys(data).join(', ')}`);
+            
+            if (!data.success) {
+                showDebugInfo(`❌ API returned success=false: ${data.error}`, 'error');
+                throw new Error(data.error || 'Failed to fetch classes');
+            }
+
+            showDebugInfo(`✅ API returned success. Classes count: ${data.classes?.length || 0}`, 'success');
+            if (data.classes && data.classes.length > 0) {
+                showDebugInfo(`📋 First class: ${data.classes[0].name} with ${data.classes[0].files?.length || 0} files`);
+            }
+
+            // Transform SQL data to match the expected format
+            publishedClasses = (data.classes || []).map(cls => {
+                showDebugInfo(`🔄 Transforming class: ${cls.name} with ${cls.files?.length || 0} files`);
+                return {
+                    name: cls.name,
+                    classId: cls.classId,
+                    teachingModule: cls.teachingModule,
+                    enrollmentCode: cls.enrollmentCode,
+                    files: (cls.files || []).map(file => ({
+                        id: file.id,
+                        fileName: file.fileName,
+                        size: file.size,
+                        createdAt: file.createdAt,
+                        teachingModule: file.teachingModule || cls.teachingModule
+                    }))
+                };
+            });
+
+            showDebugInfo(`✅ Loaded ${publishedClasses.length} classes from SQL`, 'success');
+            renderPublishedClasses();
+        } catch (error) {
+            showDebugInfo(`❌ Error refreshing published classes: ${error.message}`, 'error');
+            showWarning('Failed to load classes. Please refresh the page.');
+            publishedClasses = [];
+            renderPublishedClasses();
+        }
     }
 
     if (validateClassesBtn) {
-        validateClassesBtn.addEventListener('click', () => {
-            if (currentClass.files.length) {
-                showWarning('Finish the class you are working on before validating.');
-                return;
+        console.log('Validate button found, attaching click handler. Disabled?', validateClassesBtn.disabled);
+        validateClassesBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Validate button clicked!');
+            console.log('Current class data:', {
+                teachingModule: currentClass.teachingModule,
+                name: currentClass.name,
+                filesCount: currentClass.files.length
+            });
+            
+            // If there's a current class with data, save it first
+            if (currentClass.teachingModule && currentClass.name && currentClass.files.length > 0) {
+                console.log('Saving current class before validation...');
+                try {
+                    await persistCurrentClass();
+                    // Wait a moment for the save to complete
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                } catch (error) {
+                    console.error('Error saving class before validation:', error);
+                    alert('Failed to save current class. Please try again.');
+                    return;
+                }
             }
-            if (publishedClasses.length === 0) {
+
+            // Check if we have any published classes
+            if (publishedClasses.length === 0 && (!currentClass.teachingModule || !currentClass.name || currentClass.files.length === 0)) {
+                console.log('No classes to validate');
                 showWarning('Create at least one class before validating.');
                 return;
             }
+
+            console.log('Redirecting to dashboard...');
+            // Redirect to dashboard
             window.location.href = 'teacher-dashboard.html';
         });
+    } else {
+        console.error('Validate button NOT FOUND! ID: validate-modules-btn');
     }
 
     renderCurrentClassFiles();
@@ -570,32 +887,101 @@ document.addEventListener('DOMContentLoaded', () => {
             throw new Error('API_BASE_URL is not configured');
         }
 
+        if (!creatorUserId) {
+            throw new Error('creatorUserId is missing. Please login again.');
+        }
+
         const formData = new FormData();
         formData.append('moduleName', module.name);
-        formData.append('creatorUserId', creatorUserId || '');
-        // Optionally: add description or other metadata later
+        formData.append('creatorUserId', creatorUserId);
+
+        if (module.files.length === 0) {
+            throw new Error('No files to upload');
+        }
 
         module.files.forEach((file) => {
-            // The backend can read this as $_FILES['files']['name'][i] ...
             formData.append('files[]', file);
+            formData.append('fileNames[]', file.name);
         });
 
-        const response = await fetch(`${API_BASE_URL}/create_module_with_files.php`, {
-            method: 'POST',
-            body: formData
+        try {
+            const response = await fetch(`${API_BASE_URL}/create_module_with_files.php`, {
+                method: 'POST',
+                body: formData
+            });
+
+            const responseText = await response.text();
+            console.log('Backend response:', responseText);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${responseText.substring(0, 200)}`);
+            }
+
+            const data = JSON.parse(responseText);
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            if (!data.success) {
+                throw new Error('Backend did not return success');
+            }
+
+            return data;
+        } catch (err) {
+            if (err instanceof SyntaxError) {
+                throw new Error('Backend returned invalid JSON. Response: ' + err.message);
+            }
+            throw err;
+        }
+    }
+
+    async function uploadFilesToExistingModule(moduleName, moduleId, fileList) {
+        if (!API_BASE_URL) {
+            throw new Error('API_BASE_URL is not configured');
+        }
+
+        const formData = new FormData();
+        formData.append('moduleName', moduleName);
+        formData.append('moduleId', moduleId);
+
+        if (fileList.length === 0) {
+            throw new Error('No files to upload');
+        }
+
+        Array.from(fileList).forEach((file) => {
+            formData.append('files[]', file);
+            formData.append('fileNames[]', file.name);
         });
 
-        if (!response.ok) {
-            throw new Error(`Backend error: ${response.status} ${response.statusText}`);
-        }
+        try {
+            const response = await fetch(`${API_BASE_URL}/add_files_to_module.php`, {
+                method: 'POST',
+                body: formData
+            });
 
-        const data = await response.json().catch(() => ({}));
-        if (data.error) {
-            throw new Error(data.error);
-        }
+            const responseText = await response.text();
+            console.log('Backend response:', responseText);
 
-        // Expect something like { success: true, moduleId: 123 }
-        return data;
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${responseText.substring(0, 200)}`);
+            }
+
+            const data = JSON.parse(responseText);
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            if (!data.success) {
+                throw new Error('Backend did not return success');
+            }
+
+            return data;
+        } catch (err) {
+            if (err instanceof SyntaxError) {
+                throw new Error('Backend returned invalid JSON. Response: ' + err.message);
+            }
+            throw err;
+        }
     }
 
     async function addFilesToExistingModule(moduleName, fileList) {
@@ -603,18 +989,27 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         try {
-            await Promise.all(Array.from(fileList).map(file => saveStudentFile({
-                email: currentUserEmail,
-                moduleName,
-                fileName: file.name,
-                fileBlob: file,
-                createdAt: new Date(),
-                size: file.size
-            })));
+            // Try to find the module in signedModules to get moduleId
+            const module = signedModules.find(m => m.name === moduleName);
+            
+            // If module has moduleId and USE_BACKEND_API_FOR_MODULES is true, use backend API
+            if (USE_BACKEND_API_FOR_MODULES && module && module.moduleId) {
+                await uploadFilesToExistingModule(moduleName, module.moduleId, fileList);
+            } else {
+                // Fallback to IndexedDB if no moduleId (legacy)
+                await Promise.all(Array.from(fileList).map(file => saveStudentFile({
+                    email: currentUserEmail,
+                    moduleName,
+                    fileName: file.name,
+                    fileBlob: file,
+                    createdAt: new Date(),
+                    size: file.size
+                })));
+            }
             await refreshSignedModules();
         } catch (error) {
             console.error('Error adding files to module:', error);
-            alert('Failed to add files to this module.');
+            showWarning('Failed to add files to this module.');
         }
     }
 
@@ -653,7 +1048,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (USE_BACKEND_API_FOR_MODULES) {
                 // New path: send module + files to the PHP backend (MySQL)
                 const creatorUserId = localStorage.getItem('currentUserId');
-                await uploadModuleToBackend(currentModule, creatorUserId);
+                if (!creatorUserId) {
+                    throw new Error('Not logged in. Please login again.');
+                }
+                const result = await uploadModuleToBackend(currentModule, creatorUserId);
+                console.log('Module created successfully:', result);
             } else {
                 // Legacy path: keep saving in IndexedDB only
                 const saveOperations = currentModule.files.map(file => saveStudentFile({
@@ -671,7 +1070,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await refreshSignedModules();
         } catch (error) {
             console.error('Error saving module files:', error);
-            alert('Failed to save module files. Please try again.');
+            showWarning('Failed to save module files. Please try again.');
             finishModuleBtn.disabled = false;
         }
     }
@@ -886,7 +1285,25 @@ document.addEventListener('DOMContentLoaded', () => {
             await refreshSignedModules();
         } catch (error) {
             console.error('Error deleting file:', error);
-            alert('Failed to delete file.');
+        }
+    }
+
+    async function deleteModuleFromBackend(moduleId) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/delete_module.php`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ moduleId: moduleId })
+            });
+
+            const data = await response.json();
+            if (!response.ok || (data && data.error)) {
+                throw new Error(data && data.error ? data.error : 'Failed to delete module from database');
+            }
+            return data;
+        } catch (error) {
+            console.error('Error deleting module from backend:', error);
+            throw error;
         }
     }
 
@@ -897,11 +1314,21 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const module = signedModules.find(m => m.name === moduleName);
             if (!module) return;
-            await Promise.all(module.files.map(file => deleteFile(file.id)));
+
+            // Delete from SQL database if moduleId exists
+            if (module.moduleId) {
+                await deleteModuleFromBackend(module.moduleId);
+            }
+
+            // Also delete files from IndexedDB if they exist there
+            if (module.files && module.files.length > 0) {
+                await Promise.all(module.files.map(file => deleteFile(file.id)));
+            }
+
             await refreshSignedModules();
         } catch (error) {
             console.error('Error deleting module:', error);
-            alert('Failed to delete module.');
+            showWarning('Failed to delete module.');
         }
     }
 
