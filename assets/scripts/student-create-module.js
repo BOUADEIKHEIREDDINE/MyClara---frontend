@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentFileCount = document.getElementById('current-file-count');
     const modulesList = document.getElementById('modules-list');
     const validateModulesBtn = document.getElementById('validate-modules-btn');
+    const importTeacherModulesBtn = document.getElementById('import-teacher-modules-btn');
     const existingModuleFileInput = document.getElementById('existing-module-file-input');
 
     const currentUserEmail = localStorage.getItem('currentUserEmail');
@@ -774,6 +775,100 @@ document.addEventListener('DOMContentLoaded', () => {
             // Rediriger vers le dashboard
             window.location.href = 'student-dashboard.html';
         });
+    }
+
+    // Function to import modules from teachers
+    async function importTeacherModules() {
+        const studentId = localStorage.getItem('currentUserId');
+        if (!studentId) {
+            showWarning('Not logged in. Please login again.');
+            return;
+        }
+
+        if (importTeacherModulesBtn) {
+            importTeacherModulesBtn.disabled = true;
+            importTeacherModulesBtn.textContent = 'Importing...';
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/import_teacher_modules.php?studentId=${studentId}`);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 200)}`);
+            }
+
+            const data = await response.json();
+            
+            if (!data.success) {
+                throw new Error(data.error || 'Failed to import modules');
+            }
+
+            if (data.modules && data.modules.length > 0) {
+                // Add imported modules to signedModules
+                let importedCount = 0;
+                data.modules.forEach(importedModule => {
+                    // Check if module already exists
+                    const existingIndex = signedModules.findIndex(m => m.name === importedModule.name);
+                    if (existingIndex >= 0) {
+                        // Merge files if module exists
+                        const existingFiles = signedModules[existingIndex].files.map(f => f.id);
+                        let newFilesAdded = 0;
+                        importedModule.files.forEach(file => {
+                            if (!existingFiles.includes(file.id)) {
+                                signedModules[existingIndex].files.push({
+                                    id: file.id,
+                                    fileName: file.fileName,
+                                    size: file.size || 0,
+                                    createdAt: file.createdAt || new Date().toISOString(),
+                                    fileType: file.fileType || ''
+                                });
+                                newFilesAdded++;
+                            }
+                        });
+                        if (newFilesAdded > 0) {
+                            importedCount++;
+                        }
+                    } else {
+                        // Add new module
+                        signedModules.push({
+                            name: importedModule.name,
+                            moduleId: importedModule.moduleId,
+                            files: (importedModule.files || []).map(file => ({
+                                id: file.id,
+                                fileName: file.fileName,
+                                size: file.size || 0,
+                                createdAt: file.createdAt || new Date().toISOString(),
+                                fileType: file.fileType || ''
+                            }))
+                        });
+                        importedCount++;
+                    }
+                });
+
+                renderSignedModules();
+                if (importedCount > 0) {
+                    showWarning(`Successfully imported ${importedCount} module(s) from teachers.`);
+                } else {
+                    showWarning('All modules from teachers are already imported.');
+                }
+            } else {
+                showWarning('No modules found from your teachers. Make sure you have enrolled in a class.');
+            }
+        } catch (error) {
+            console.error('Error importing teacher modules:', error);
+            showWarning('Failed to import modules: ' + (error.message || 'Unknown error'));
+        } finally {
+            if (importTeacherModulesBtn) {
+                importTeacherModulesBtn.disabled = false;
+                importTeacherModulesBtn.textContent = 'Import Modules from Teachers';
+            }
+        }
+    }
+
+    // Event listener for import button
+    if (importTeacherModulesBtn) {
+        importTeacherModulesBtn.addEventListener('click', importTeacherModules);
     }
 
     renderCurrentModuleFiles();

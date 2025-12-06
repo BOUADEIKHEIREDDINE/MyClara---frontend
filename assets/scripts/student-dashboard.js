@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let selectedModule = null;
     const currentUserEmail = localStorage.getItem('currentUserEmail');
     let currentUserId = localStorage.getItem('currentUserId');
+    let isDisplayingModules = false; // Flag to prevent concurrent calls
     
     // Debug: Show current user info on page
     function initDebugPanel() {
@@ -83,11 +84,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Function to fetch modules from SQL database ONLY (no IndexedDB fallback)
-    // Uses CreatorUserID from modules table matching UserID from users table
+    // Function to fetch modules from SQL database - BOTH student-created AND teacher-imported
+    // Merges modules created by student with modules imported from teachers
     async function fetchModulesFromSQL() {
         // Always get fresh currentUserId from localStorage
-        // This should be the UserID from the users table
         const userId = localStorage.getItem('currentUserId');
         
         if (!userId) {
@@ -96,7 +96,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return [];
         }
 
-        // Convert to integer to ensure proper matching with CreatorUserID
+        // Convert to integer to ensure proper matching
         const userIdInt = parseInt(userId, 10);
         if (isNaN(userIdInt)) {
             showDebugInfo(`❌ Invalid UserID format: ${userId}`, 'error');
@@ -104,66 +104,69 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         showDebugInfo(`🔍 Fetching modules for UserID: ${userIdInt}`);
-        showDebugInfo(`Query: WHERE CreatorUserID = ${userIdInt}`);
 
         try {
-            const url = `${API_BASE_URL}/list_student_modules.php?creatorUserId=${userIdInt}`;
-            showDebugInfo(`📡 Requesting: ${url}`);
+            // Fetch student's own modules (created by student)
+            const studentModulesUrl = `${API_BASE_URL}/list_student_modules.php?creatorUserId=${userIdInt}`;
+            showDebugInfo(`📡 Fetching student modules: ${studentModulesUrl}`);
             
-            const res = await fetch(url);
+            const studentRes = await fetch(studentModulesUrl);
+            let studentModules = [];
             
-            showDebugInfo(`📥 Response status: ${res.status} ${res.statusText}`);
-            
-            if (!res.ok) {
-                const errorText = await res.text();
-                showDebugInfo(`❌ Error ${res.status}: ${errorText.substring(0, 100)}`, 'error');
-                return [];
+            if (studentRes.ok) {
+                const studentData = await studentRes.json();
+                if (studentData && studentData.success && Array.isArray(studentData.modules)) {
+                    studentModules = studentData.modules.map(m => ({
+                        moduleId: m.ModuleID || m.moduleId,
+                        name: m.ModuleName || m.name || '',
+                        isImported: false // Mark as student-created
+                    })).filter(m => m.name && m.moduleId);
+                    showDebugInfo(`✅ Found ${studentModules.length} student-created modules`, 'success');
+                }
             }
 
-            const responseText = await res.text();
-            showDebugInfo(`📄 Response received (${responseText.length} chars)`);
+            // Fetch teacher modules (imported via enrollment code)
+            const teacherModulesUrl = `${API_BASE_URL}/import_teacher_modules.php?studentId=${userIdInt}`;
+            showDebugInfo(`📡 Fetching teacher modules: ${teacherModulesUrl}`);
             
-            let data;
-            try {
-                data = JSON.parse(responseText);
-                showDebugInfo('✅ JSON parsed successfully');
-            } catch (parseError) {
-                showDebugInfo(`❌ JSON parse error: ${parseError.message}`, 'error');
-                showDebugInfo(`Response: ${responseText.substring(0, 200)}`, 'error');
-                return [];
+            const teacherRes = await fetch(teacherModulesUrl);
+            let teacherModules = [];
+            
+            if (teacherRes.ok) {
+                const teacherData = await teacherRes.json();
+                if (teacherData && teacherData.success && Array.isArray(teacherData.modules)) {
+                    teacherModules = teacherData.modules.map(m => ({
+                        moduleId: m.moduleId || m.ModuleID,
+                        name: m.name || m.ModuleName || '',
+                        isImported: true // Mark as imported from teacher
+                    })).filter(m => m.name && m.moduleId);
+                    showDebugInfo(`✅ Found ${teacherModules.length} teacher-imported modules`, 'success');
+                }
             }
-            
-            showDebugInfo(`Success: ${data.success}, Modules: ${data.modules ? data.modules.length : 0}`);
-            
-            // Check if response is successful and has modules
-            // IMPORTANT: Show ALL modules regardless of file count (even if 0 files)
-            if (data && data.success && Array.isArray(data.modules)) {
-                showDebugInfo(`✅ Processing ${data.modules.length} modules...`, 'success');
-                
-                const modules = data.modules.map((m, index) => {
-                    const module = {
-                        moduleId: m.ModuleID || m.moduleId,
-                        name: m.ModuleName || m.name || ''
-                    };
-                    showDebugInfo(`  ✓ Module ${index + 1}: ${module.name} (ID: ${module.moduleId})`, 'success');
-                    return module;
-                }).filter(m => {
-                    const isValid = m.name && m.moduleId;
-                    if (!isValid) {
-                        showDebugInfo(`  ⚠ Filtered out invalid module: ${JSON.stringify(m)}`, 'error');
-                    }
-                    return isValid;
-                });
-                
-                showDebugInfo(`✅ Ready to display ${modules.length} modules`, 'success');
-                return modules;
-            } else if (data && data.error) {
-                showDebugInfo(`❌ API error: ${data.error}`, 'error');
-                return [];
-            } else {
-                showDebugInfo(`⚠ Unexpected format. Success: ${data?.success}, Modules type: ${typeof data?.modules}`, 'error');
-                return [];
-            }
+
+            // Merge modules: combine both sources, avoiding duplicates by module name
+            const mergedModules = [];
+            const moduleNamesSeen = new Set();
+
+            // Add student modules first
+            studentModules.forEach(module => {
+                if (!moduleNamesSeen.has(module.name)) {
+                    mergedModules.push(module);
+                    moduleNamesSeen.add(module.name);
+                }
+            });
+
+            // Add teacher modules (skip if name already exists)
+            teacherModules.forEach(module => {
+                if (!moduleNamesSeen.has(module.name)) {
+                    mergedModules.push(module);
+                    moduleNamesSeen.add(module.name);
+                }
+            });
+
+            showDebugInfo(`✅ Merged total: ${mergedModules.length} modules (${studentModules.length} student + ${teacherModules.length} teacher)`, 'success');
+            return mergedModules;
+
         } catch (error) {
             showDebugInfo(`❌ Network error: ${error.message}`, 'error');
             return [];
@@ -172,49 +175,87 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Function to display modules in the sidebar
     async function displayModules() {
+        // Prevent concurrent calls
+        if (isDisplayingModules) {
+            showDebugInfo('⏸️ displayModules() already in progress, skipping...');
+            return;
+        }
+        
+        isDisplayingModules = true;
         showDebugInfo('=== displayModules() called ===');
         
-        // Verify moduleList element exists
-        if (!moduleList) {
-            showDebugInfo('❌ ERROR: moduleList element not found!', 'error');
-            showDebugInfo('Looking for element with id="module-list"', 'error');
-            return;
-        }
-        
-        moduleList.innerHTML = '';
-        
-        // Fetch modules from SQL database
-        const modules = await fetchModulesFromSQL();
-        
-        showDebugInfo(`📦 Received ${modules.length} modules from fetch`);
+        try {
+            // Verify moduleList element exists
+            if (!moduleList) {
+                showDebugInfo('❌ ERROR: moduleList element not found!', 'error');
+                showDebugInfo('Looking for element with id="module-list"', 'error');
+                return;
+            }
+            
+            // Clear existing modules first - this prevents duplicates
+            const existingModuleIds = new Set();
+            moduleList.querySelectorAll('.module-item').forEach(item => {
+                const moduleId = item.dataset.moduleId;
+                if (moduleId) {
+                    existingModuleIds.add(moduleId);
+                }
+            });
+            
+            // Only clear if we're going to rebuild
+            moduleList.innerHTML = '';
+            
+            // Fetch modules from SQL database
+            const modules = await fetchModulesFromSQL();
+            
+            showDebugInfo(`📦 Received ${modules.length} modules from fetch`);
 
-        if (!modules || modules.length === 0) {
-            showDebugInfo('⚠ No modules found - showing empty state', 'error');
-            moduleList.innerHTML = '<p style="text-align: center; color: #858596; padding: 20px;">No modules created yet.</p>';
-            updateMainContent();
-            toggleLearningModeButtons(false);
-            return;
-        }
-        
-        showDebugInfo(`🎨 Displaying ${modules.length} modules in sidebar`, 'success');
+            if (!modules || modules.length === 0) {
+                showDebugInfo('⚠ No modules found - showing empty state', 'error');
+                moduleList.innerHTML = '<p style="text-align: center; color: #858596; padding: 20px;">No modules created yet.</p>';
+                updateMainContent();
+                toggleLearningModeButtons(false);
+                return;
+            }
+            
+            showDebugInfo(`🎨 Displaying ${modules.length} modules in sidebar`, 'success');
 
-        let newlyCreatedModuleName = localStorage.getItem('newlyCreatedModuleName');
+            // Remove duplicates by moduleId (more reliable than name)
+            const uniqueModules = [];
+            const seenModuleIds = new Set();
+            modules.forEach(module => {
+                if (module.moduleId && !seenModuleIds.has(module.moduleId)) {
+                    uniqueModules.push(module);
+                    seenModuleIds.add(module.moduleId);
+                }
+            });
 
-        // Display each module
-        showDebugInfo(`🔨 Creating DOM for ${modules.length} modules`);
-        modules.forEach((module, index) => {
-            const li = document.createElement('li');
-            li.classList.add('module-item');
-            li.dataset.moduleName = module.name; // Store module name for selection
-            li.dataset.moduleId = module.moduleId; // Store module ID
-            li.innerHTML = `
-                <div class="module-text">
-                    <img src="assets/icons/module.svg" alt="Module Icon" class="module-icon">
-                    <span class="module-name">${module.name}</span>
-                </div>
-            `;
-            moduleList.appendChild(li);
-            showDebugInfo(`  ✓ Added: "${module.name}"`, 'success');
+            showDebugInfo(`🔍 After deduplication: ${uniqueModules.length} unique modules`);
+
+            let newlyCreatedModuleName = localStorage.getItem('newlyCreatedModuleName');
+
+            // Display each module - ensure we don't add duplicates
+            showDebugInfo(`🔨 Creating DOM for ${uniqueModules.length} modules`);
+            const addedModuleIds = new Set();
+            uniqueModules.forEach((module, index) => {
+                // Double-check: don't add if already in DOM (shouldn't happen after innerHTML = '', but just in case)
+                if (addedModuleIds.has(module.moduleId)) {
+                    showDebugInfo(`  ⚠ Skipping duplicate: "${module.name}" (ID: ${module.moduleId})`, 'error');
+                    return;
+                }
+                
+                const li = document.createElement('li');
+                li.classList.add('module-item');
+                li.dataset.moduleName = module.name; // Store module name for selection
+                li.dataset.moduleId = module.moduleId; // Store module ID
+                li.innerHTML = `
+                    <div class="module-text">
+                        <img src="assets/icons/module.svg" alt="Module Icon" class="module-icon">
+                        <span class="module-name">${module.name}</span>
+                    </div>
+                `;
+                moduleList.appendChild(li);
+                addedModuleIds.add(module.moduleId);
+                showDebugInfo(`  ✓ Added: "${module.name}"`, 'success');
 
             // Automatically select the newly created module if it exists
             if (newlyCreatedModuleName && module.name === newlyCreatedModuleName) {
@@ -238,9 +279,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         showDebugInfo(`✅ Done! ${moduleList.children.length} modules in DOM`, 'success');
 
-        // After all modules are displayed and potentially one is selected, update content
-        updateMainContent();
-        toggleLearningModeButtons(selectedModule !== null); // Enable buttons if a module is selected
+            // After all modules are displayed and potentially one is selected, update content
+            updateMainContent();
+            toggleLearningModeButtons(selectedModule !== null); // Enable buttons if a module is selected
+        } finally {
+            // Always reset the flag, even if there was an error
+            isDisplayingModules = false;
+        }
     }
 
     // Event listener for Add Module button
@@ -276,7 +321,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Function to refresh modules (useful when returning from other pages)
+    // Only call this manually when needed, not automatically
     function refreshModules() {
+        // Only refresh if not already displaying
+        if (isDisplayingModules) {
+            return;
+        }
+        
         // Re-fetch currentUserId in case it was updated
         const updatedUserId = localStorage.getItem('currentUserId');
         if (updatedUserId && updatedUserId !== currentUserId) {
@@ -286,15 +337,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         displayModules();
     }
 
-    // Refresh modules when page becomes visible (e.g., when returning from create module page)
-    document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) {
-            refreshModules();
-        }
-    });
-
-    // Also refresh when page gains focus
-    window.addEventListener('focus', refreshModules);
+    // REMOVED automatic refresh on visibilitychange and focus
+    // These were causing modules to reload every few seconds
+    // Modules will only load once on page load
+    // If refresh is needed, it should be done manually (e.g., after creating a module)
 
     // Initial setup when page loads
     displayModules();

@@ -143,8 +143,35 @@ document.addEventListener('DOMContentLoaded', () => {
     teachingModuleInput.addEventListener('input', updateCurrentClassDetails);
     classNameInput.addEventListener('input', updateCurrentClassDetails);
 
-    // Le bouton "Add Students" sera remplacé par le code de classe après création
-    // Pas besoin d'event listener pour l'instant
+    // Event listener pour le bouton "Add Students" - affiche le code d'enrôlement
+    if (addStudentsBtn) {
+        addStudentsBtn.addEventListener('click', () => {
+            // Vérifier si la classe actuelle a un code d'enrôlement
+            if (currentClass.enrollmentCode) {
+                displayClassCode(currentClass.enrollmentCode);
+                return;
+            }
+            
+            // Sinon, chercher dans les classes publiées (la plus récente)
+            if (publishedClasses && publishedClasses.length > 0) {
+                // Trier par date de création (la plus récente en premier)
+                const sortedClasses = [...publishedClasses].sort((a, b) => {
+                    const dateA = new Date(a.createdAt || 0);
+                    const dateB = new Date(b.createdAt || 0);
+                    return dateB - dateA;
+                });
+                
+                const latestClass = sortedClasses[0];
+                if (latestClass && latestClass.enrollmentCode) {
+                    displayClassCode(latestClass.enrollmentCode);
+                    return;
+                }
+            }
+            
+            // Si aucun code n'est trouvé, afficher un message
+            showWarning('No enrollment code available. Please create a class first.');
+        });
+    }
 
     function formatFileSize(bytes) {
         if (bytes === 0) return '0 KB';
@@ -347,6 +374,36 @@ document.addEventListener('DOMContentLoaded', () => {
         const actionsDiv = document.querySelector('.class-inline-actions');
         if (actionsDiv) {
             actionsDiv.innerHTML = '<button class="btn outline-btn" id="add-students-btn" type="button">Add Students</button>';
+            // Réattacher l'event listener au nouveau bouton
+            const newAddStudentsBtn = document.getElementById('add-students-btn');
+            if (newAddStudentsBtn) {
+                newAddStudentsBtn.addEventListener('click', () => {
+                    // Vérifier si la classe actuelle a un code d'enrôlement
+                    if (currentClass.enrollmentCode) {
+                        displayClassCode(currentClass.enrollmentCode);
+                        return;
+                    }
+                    
+                    // Sinon, chercher dans les classes publiées (la plus récente)
+                    if (publishedClasses && publishedClasses.length > 0) {
+                        // Trier par date de création (la plus récente en premier)
+                        const sortedClasses = [...publishedClasses].sort((a, b) => {
+                            const dateA = new Date(a.createdAt || 0);
+                            const dateB = new Date(b.createdAt || 0);
+                            return dateB - dateA;
+                        });
+                        
+                        const latestClass = sortedClasses[0];
+                        if (latestClass && latestClass.enrollmentCode) {
+                            displayClassCode(latestClass.enrollmentCode);
+                            return;
+                        }
+                    }
+                    
+                    // Si aucun code n'est trouvé, afficher un message
+                    showWarning('No enrollment code available. Please create a class first.');
+                });
+            }
         }
     }
 

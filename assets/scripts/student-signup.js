@@ -6,9 +6,16 @@ document.addEventListener('DOMContentLoaded', () => {
     async function handleStudentSignup() {
         const email = emailInput.value.trim();
         const password = document.getElementById('password').value;
+        const enrollmentCode = document.getElementById('enrollment-code')?.value.trim().toUpperCase() || '';
 
         if (!email || !password) {
-            console.log('Email and password are required for signup.');
+            alert('Email and password are required for signup.');
+            return;
+        }
+
+        // Validate enrollment code format if provided (6 alphanumeric characters)
+        if (enrollmentCode && !/^[A-Z0-9]{6}$/.test(enrollmentCode)) {
+            alert('Enrollment code must be 6 alphanumeric characters (e.g., ABC123)');
             return;
         }
 
@@ -19,7 +26,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({
                     email,
                     password,
-                    userType: 'Student'
+                    userType: 'Student',
+                    enrollmentCode: enrollmentCode || null
                 })
             });
 

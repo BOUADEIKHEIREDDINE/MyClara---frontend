@@ -11,22 +11,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     const lessonSchematiserBtn = document.getElementById('lesson-schematiser-btn');
 
     let selectedModule = null;
-    const currentUserEmail = localStorage.getItem('currentUserEmail');
+    const API_BASE_URL = 'http://localhost/myclara-api';
+    const NEW_MODULE_KEY = 'teacherNewlyCreatedClassName';
 
-    if (!currentUserEmail) {
-        console.error("No current user email found in localStorage. Redirecting to login.");
+    const currentUserEmail = localStorage.getItem('currentUserEmail');
+    const teacherId = localStorage.getItem('currentUserId');
+
+    if (!currentUserEmail || !teacherId) {
+        console.error("No current user email or ID found in localStorage. Redirecting to login.");
         window.location.href = 'teacher-login.html';
         return;
     }
-
-    const NEW_MODULE_KEY = 'teacherNewlyCreatedClassName';
 
     // Function to update main content area
     function updateMainContent() {
         if (selectedModule) {
             mainContentDefault.style.display = 'none';
             mainContentModule.style.display = 'flex'; // Use flex for centering module content
-            moduleContentTitle.textContent = selectedModule.dataset.moduleName;
+            moduleContentTitle.textContent = selectedModule.dataset.className || selectedModule.dataset.moduleName;
         } else {
             mainContentDefault.style.display = 'flex';
             mainContentModule.style.display = 'none';
@@ -40,62 +42,85 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Function to display modules in the sidebar
+    // Function to fetch classes from SQL
+    async function fetchClassesFromSQL() {
+        try {
+            const url = `${API_BASE_URL}/list_teacher_classes.php?teacherId=${teacherId}`;
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Failed to fetch classes:', response.status, errorText);
+                return [];
+            }
+
+            const data = await response.json();
+            
+            if (!data.success) {
+                console.error('API returned error:', data.error);
+                return [];
+            }
+
+            return data.classes || [];
+        } catch (error) {
+            console.error('Error fetching classes from SQL:', error);
+            return [];
+        }
+    }
+
+    // Function to display classes in the sidebar
     async function displayModules() {
         moduleList.innerHTML = '';
-        await openDB(); // Ensure DB is open before fetching
-        const files = await getAllFilesByEmail(currentUserEmail);
+        
+        // Fetch classes from SQL
+        const classes = await fetchClassesFromSQL();
 
-        // Group files by module name
-        const modules = {};
-        files.forEach(file => {
-            if (!modules[file.moduleName]) {
-                modules[file.moduleName] = { name: file.moduleName, files: [] };
-            }
-            modules[file.moduleName].files.push(file);
-        });
-
-        if (Object.keys(modules).length === 0) {
+        if (!classes || classes.length === 0) {
             moduleList.innerHTML = '<p style="text-align: center; color: #858596; padding: 20px;">No classes created yet.</p>';
+            updateMainContent();
+            toggleLearningModeButtons(false);
             return;
         }
 
-        let newlyCreatedModuleName = localStorage.getItem(NEW_MODULE_KEY);
+        let newlyCreatedClassName = localStorage.getItem(NEW_MODULE_KEY);
 
-        for (const moduleName in modules) {
-            const moduleFiles = modules[moduleName].files;
+        // Display each class
+        classes.forEach(classItem => {
             const li = document.createElement('li');
             li.classList.add('module-item');
-            li.dataset.moduleName = moduleName; // Store module name for selection
+            li.dataset.className = classItem.name; // Store class name
+            li.dataset.classId = classItem.classId; // Store class ID
+            li.dataset.moduleName = classItem.teachingModule || classItem.name; // Store module name for compatibility
             li.innerHTML = `
                 <div class="module-text">
-                    <img src="assets/icons/module.svg" alt="Module Icon" class="module-icon">
-                    <span class="module-name">${moduleName}</span>
+                    <img src="assets/icons/module.svg" alt="Class Icon" class="module-icon">
+                    <span class="module-name">${classItem.name}</span>
                 </div>
             `;
             moduleList.appendChild(li);
 
-            // Automatically select the newly created module if it exists
-            if (newlyCreatedModuleName && moduleName === newlyCreatedModuleName) {
+            // Automatically select the newly created class if it exists
+            if (newlyCreatedClassName && classItem.name === newlyCreatedClassName) {
                 li.classList.add('active');
-                selectedModule = li; // Set this module as selected
+                selectedModule = li;
                 localStorage.removeItem(NEW_MODULE_KEY); // Clear after selection
             }
 
             li.addEventListener('click', () => {
-                // Remove active class from all other modules
+                // Remove active class from all other classes
                 moduleList.querySelectorAll('.module-item').forEach(mod => mod.classList.remove('active'));
-                // Add active class to the clicked module
+                // Add active class to the clicked class
                 li.classList.add('active');
                 selectedModule = li;
-                console.log(`Class selected: ${selectedModule.dataset.moduleName}`);
+                console.log(`Class selected: ${selectedModule.dataset.className}`);
                 updateMainContent();
                 toggleLearningModeButtons(true);
             });
-        }
-        // After all modules are displayed and potentially one is selected, update content
+        });
+        
+        // After all classes are displayed and potentially one is selected, update content
         updateMainContent();
-        toggleLearningModeButtons(selectedModule !== null); // Enable buttons if a module is selected
+        toggleLearningModeButtons(selectedModule !== null); // Enable buttons if a class is selected
     }
 
     // Event listener for Add Class button
