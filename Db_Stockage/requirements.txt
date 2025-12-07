@@ -1,0 +1,33 @@
+# Uncomment to enable Azure Monitor OpenTelemetry
+# Ref: aka.ms/functions-azure-monitor-python
+azure-monitor-opentelemetry
+azure-functions
+# requirements.txt
+# --- Framework API ---
+# FastAPI est le micro-framework utilisé pour construire les routes.
+fastapi
+# Uvicorn est le serveur ASGI (Asynchronous Server Gateway Interface)
+# requis pour exécuter FastAPI de manière performante.
+uvicorn[standard]
+
+# --- Base de Données (DBManager) ---
+# SQLAlchemy est utilisé pour l'ORM et la gestion des connexions.
+SQLAlchemy
+# Le connecteur Python pour interagir avec Azure Database for MySQL.
+mysql-connector-python
+
+# --- Sécurité et Authentification (AuthHandler) ---
+# bcrypt est utilisé pour le hachage sécurisé des mots de passe.
+bcrypt
+
+# --- Services Cloud Azure (SecureStorageHandler) ---
+# SDK officiel pour interagir avec Azure Blob Storage.
+azure-storage-blob
+
+# --- Gestion de l'environnement (Principalement pour le développement local) ---
+# Nécessaire si vous voulez continuer à utiliser les fichiers .env/.config.env
+# pour les tests locaux, bien qu'il soit ignoré en production Azure.
+python-dotenv
+
+# Bibliothèque essentielle pour la gestion des JWT
+python-jose[cryptography]
