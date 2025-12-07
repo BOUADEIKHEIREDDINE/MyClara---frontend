@@ -12,10 +12,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let selectedModule = null;
     const API_BASE_URL = 'http://localhost/myclara-api';
+    const RAG_API_BASE_URL = 'http://localhost:8000'; // RAG API base URL
     const NEW_MODULE_KEY = 'teacherNewlyCreatedClassName';
 
     const currentUserEmail = localStorage.getItem('currentUserEmail');
     const teacherId = localStorage.getItem('currentUserId');
+    let claraClient = null; // Clara API client instance
+    let chatInterface = null; // Chat interface instance
+    let exercisesInterface = null; // Exercises interface instance
+    let revisionInterface = null; // Revision interface instance
 
     if (!currentUserEmail || !teacherId) {
         console.error("No current user email or ID found in localStorage. Redirecting to login.");
@@ -136,22 +141,105 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Event listeners for learning mode buttons (placeholder)
+    // Initialize Clara Client
+    function initializeClaraClient() {
+        if (!claraClient) {
+            claraClient = new ClaraClient(RAG_API_BASE_URL);
+        }
+        return claraClient;
+    }
+
+    // Event listeners for learning mode buttons
     if (aiChatBtn) {
         aiChatBtn.addEventListener('click', () => {
-            console.log("AI Chatbot selected");
+            if (!selectedModule) {
+                console.warn("Please select a class first");
+                alert("Please select a class from the sidebar first.");
+                return;
+            }
+
+            // Initialize Clara client if not already initialized
+            const client = initializeClaraClient();
+            
+            // Get class/module name
+            const moduleName = selectedModule.dataset.className || selectedModule.dataset.moduleName || 'Class';
+            
+            // Close existing interfaces if open
+            if (chatInterface && chatInterface.isOpen) {
+                chatInterface.close();
+            }
+            if (exercisesInterface && exercisesInterface.isOpen) {
+                exercisesInterface.close();
+            }
+            if (revisionInterface && revisionInterface.isOpen) {
+                revisionInterface.close();
+            }
+            
+            // Create and open new chat interface
+            chatInterface = new ChatInterface(client, moduleName);
+            chatInterface.open();
         });
     }
 
     if (exercisesBtn) {
         exercisesBtn.addEventListener('click', () => {
-            console.log("Exercises selected");
+            if (!selectedModule) {
+                console.warn("Please select a class first");
+                alert("Please select a class from the sidebar first.");
+                return;
+            }
+
+            // Initialize Clara client if not already initialized
+            const client = initializeClaraClient();
+            
+            // Get class/module name
+            const moduleName = selectedModule.dataset.className || selectedModule.dataset.moduleName || 'Class';
+            
+            // Close existing interfaces if open
+            if (chatInterface && chatInterface.isOpen) {
+                chatInterface.close();
+            }
+            if (exercisesInterface && exercisesInterface.isOpen) {
+                exercisesInterface.close();
+            }
+            if (revisionInterface && revisionInterface.isOpen) {
+                revisionInterface.close();
+            }
+            
+            // Create and open new exercises interface
+            exercisesInterface = new ExercisesInterface(client, moduleName);
+            exercisesInterface.open();
         });
     }
 
     if (lessonSchematiserBtn) {
         lessonSchematiserBtn.addEventListener('click', () => {
-            console.log("Lesson Schematiser selected");
+            if (!selectedModule) {
+                console.warn("Please select a class first");
+                alert("Please select a class from the sidebar first.");
+                return;
+            }
+
+            // Initialize Clara client if not already initialized
+            const client = initializeClaraClient();
+            
+            // Get class/module name
+            const moduleName = selectedModule.dataset.className || selectedModule.dataset.moduleName || 'Class';
+            
+            // Close existing interfaces if open
+            if (chatInterface && chatInterface.isOpen) {
+                chatInterface.close();
+            }
+            if (exercisesInterface && exercisesInterface.isOpen) {
+                exercisesInterface.close();
+            }
+            if (revisionInterface && revisionInterface.isOpen) {
+                revisionInterface.close();
+            }
+            
+            // Create and open new revision interface
+            revisionInterface = new RevisionInterface(client, moduleName);
+            revisionInterface.open();
         });
     }
 

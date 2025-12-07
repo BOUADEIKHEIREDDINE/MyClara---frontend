@@ -11,33 +11,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     const lessonSchematiserBtn = document.getElementById('lesson-schematiser-btn');
 
     const API_BASE_URL = 'http://localhost/myclara-api';
+    const RAG_API_BASE_URL = 'http://localhost:8000'; // RAG API base URL
 
     let selectedModule = null;
     const currentUserEmail = localStorage.getItem('currentUserEmail');
     let currentUserId = localStorage.getItem('currentUserId');
     let isDisplayingModules = false; // Flag to prevent concurrent calls
-    
-    // Debug: Show current user info on page
-    function initDebugPanel() {
-        showDebugInfo('🚀 Dashboard loaded');
-        showDebugInfo(`👤 User ID: ${currentUserId || 'NOT SET'}`);
-        showDebugInfo(`📧 Email: ${currentUserEmail || 'NOT SET'}`);
-        
-        // Verify currentUserId is set and is a number
-        if (currentUserId) {
-            const userIdNum = parseInt(currentUserId, 10);
-            if (isNaN(userIdNum)) {
-                showDebugInfo(`⚠ WARNING: UserID is not a number! Value: ${currentUserId}`, 'error');
-            } else {
-                showDebugInfo(`✅ UserID is valid: ${userIdNum}`, 'success');
-                showDebugInfo(`Will query: WHERE CreatorUserID = ${userIdNum}`);
-            }
-        } else {
-            showDebugInfo('❌ UserID not found in localStorage!', 'error');
-        }
-    }
-    
-    initDebugPanel();
+    let claraClient = null; // Clara API client instance
+    let chatInterface = null; // Chat interface instance
+    let exercisesInterface = null; // Exercises interface instance
+    let revisionInterface = null; // Revision interface instance
 
     if (!currentUserEmail) {
         console.error("No current user email found in localStorage. Redirecting to login.");
@@ -64,26 +47,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Function to show debug info on page (alternative to console)
-    function showDebugInfo(message, type = 'info') {
-        let debugDiv = document.getElementById('debug-info');
-        if (!debugDiv) {
-            debugDiv = document.createElement('div');
-            debugDiv.id = 'debug-info';
-            debugDiv.style.cssText = 'position: fixed; top: 10px; right: 10px; background: #1a1a1a; color: #fff; padding: 15px; border-radius: 5px; max-width: 400px; max-height: 80vh; overflow-y: auto; z-index: 10000; font-family: monospace; font-size: 12px; border: 2px solid #61afef;';
-            document.body.appendChild(debugDiv);
-        }
-        const color = type === 'error' ? '#ff6b6b' : type === 'success' ? '#51cf66' : '#61afef';
-        const p = document.createElement('p');
-        p.style.cssText = `margin: 5px 0; color: ${color};`;
-        p.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-        debugDiv.appendChild(p);
-        // Keep only last 20 messages
-        while (debugDiv.children.length > 20) {
-            debugDiv.removeChild(debugDiv.firstChild);
-        }
-    }
-
     // Function to fetch modules from SQL database - BOTH student-created AND teacher-imported
     // Merges modules created by student with modules imported from teachers
     async function fetchModulesFromSQL() {
@@ -91,24 +54,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         const userId = localStorage.getItem('currentUserId');
         
         if (!userId) {
-            showDebugInfo('❌ No currentUserId found in localStorage', 'error');
-            showDebugInfo('Please login again', 'error');
             return [];
         }
 
         // Convert to integer to ensure proper matching
         const userIdInt = parseInt(userId, 10);
         if (isNaN(userIdInt)) {
-            showDebugInfo(`❌ Invalid UserID format: ${userId}`, 'error');
             return [];
         }
-
-        showDebugInfo(`🔍 Fetching modules for UserID: ${userIdInt}`);
 
         try {
             // Fetch student's own modules (created by student)
             const studentModulesUrl = `${API_BASE_URL}/list_student_modules.php?creatorUserId=${userIdInt}`;
-            showDebugInfo(`📡 Fetching student modules: ${studentModulesUrl}`);
             
             const studentRes = await fetch(studentModulesUrl);
             let studentModules = [];
@@ -121,13 +78,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                         name: m.ModuleName || m.name || '',
                         isImported: false // Mark as student-created
                     })).filter(m => m.name && m.moduleId);
-                    showDebugInfo(`✅ Found ${studentModules.length} student-created modules`, 'success');
                 }
             }
 
             // Fetch teacher modules (imported via enrollment code)
             const teacherModulesUrl = `${API_BASE_URL}/import_teacher_modules.php?studentId=${userIdInt}`;
-            showDebugInfo(`📡 Fetching teacher modules: ${teacherModulesUrl}`);
             
             const teacherRes = await fetch(teacherModulesUrl);
             let teacherModules = [];
@@ -140,7 +95,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                         name: m.name || m.ModuleName || '',
                         isImported: true // Mark as imported from teacher
                     })).filter(m => m.name && m.moduleId);
-                    showDebugInfo(`✅ Found ${teacherModules.length} teacher-imported modules`, 'success');
                 }
             }
 
@@ -164,11 +118,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
 
-            showDebugInfo(`✅ Merged total: ${mergedModules.length} modules (${studentModules.length} student + ${teacherModules.length} teacher)`, 'success');
             return mergedModules;
 
         } catch (error) {
-            showDebugInfo(`❌ Network error: ${error.message}`, 'error');
+            console.error('Error fetching modules:', error);
             return [];
         }
     }
@@ -177,47 +130,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function displayModules() {
         // Prevent concurrent calls
         if (isDisplayingModules) {
-            showDebugInfo('⏸️ displayModules() already in progress, skipping...');
             return;
         }
         
         isDisplayingModules = true;
-        showDebugInfo('=== displayModules() called ===');
         
         try {
             // Verify moduleList element exists
             if (!moduleList) {
-                showDebugInfo('❌ ERROR: moduleList element not found!', 'error');
-                showDebugInfo('Looking for element with id="module-list"', 'error');
                 return;
             }
-            
-            // Clear existing modules first - this prevents duplicates
-            const existingModuleIds = new Set();
-            moduleList.querySelectorAll('.module-item').forEach(item => {
-                const moduleId = item.dataset.moduleId;
-                if (moduleId) {
-                    existingModuleIds.add(moduleId);
-                }
-            });
             
             // Only clear if we're going to rebuild
             moduleList.innerHTML = '';
             
             // Fetch modules from SQL database
             const modules = await fetchModulesFromSQL();
-            
-            showDebugInfo(`📦 Received ${modules.length} modules from fetch`);
 
             if (!modules || modules.length === 0) {
-                showDebugInfo('⚠ No modules found - showing empty state', 'error');
                 moduleList.innerHTML = '<p style="text-align: center; color: #858596; padding: 20px;">No modules created yet.</p>';
                 updateMainContent();
                 toggleLearningModeButtons(false);
                 return;
             }
-            
-            showDebugInfo(`🎨 Displaying ${modules.length} modules in sidebar`, 'success');
 
             // Remove duplicates by moduleId (more reliable than name)
             const uniqueModules = [];
@@ -229,17 +164,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
 
-            showDebugInfo(`🔍 After deduplication: ${uniqueModules.length} unique modules`);
-
             let newlyCreatedModuleName = localStorage.getItem('newlyCreatedModuleName');
 
             // Display each module - ensure we don't add duplicates
-            showDebugInfo(`🔨 Creating DOM for ${uniqueModules.length} modules`);
             const addedModuleIds = new Set();
             uniqueModules.forEach((module, index) => {
                 // Double-check: don't add if already in DOM (shouldn't happen after innerHTML = '', but just in case)
                 if (addedModuleIds.has(module.moduleId)) {
-                    showDebugInfo(`  ⚠ Skipping duplicate: "${module.name}" (ID: ${module.moduleId})`, 'error');
                     return;
                 }
                 
@@ -255,14 +186,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 `;
                 moduleList.appendChild(li);
                 addedModuleIds.add(module.moduleId);
-                showDebugInfo(`  ✓ Added: "${module.name}"`, 'success');
 
             // Automatically select the newly created module if it exists
             if (newlyCreatedModuleName && module.name === newlyCreatedModuleName) {
                 li.classList.add('active');
                 selectedModule = li; // Set this module as selected
                 localStorage.removeItem('newlyCreatedModuleName'); // Clear after selection
-                showDebugInfo(`  ⭐ Auto-selected: ${module.name}`, 'success');
             }
 
             li.addEventListener('click', () => {
@@ -271,13 +200,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Add active class to the clicked module
                 li.classList.add('active');
                 selectedModule = li;
-                showDebugInfo(`👆 Selected: ${selectedModule.dataset.moduleName}`, 'success');
                 updateMainContent();
                 toggleLearningModeButtons(true);
             });
         });
-        
-        showDebugInfo(`✅ Done! ${moduleList.children.length} modules in DOM`, 'success');
 
             // After all modules are displayed and potentially one is selected, update content
             updateMainContent();
@@ -301,22 +227,105 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Event listeners for learning mode buttons (placeholder)
+    // Initialize Clara Client
+    function initializeClaraClient() {
+        if (!claraClient) {
+            claraClient = new ClaraClient(RAG_API_BASE_URL);
+        }
+        return claraClient;
+    }
+
+    // Event listeners for learning mode buttons
     if (aiChatBtn) {
         aiChatBtn.addEventListener('click', () => {
-            console.log("AI Chatbot selected");
+            if (!selectedModule) {
+                console.warn("Please select a module first");
+                alert("Please select a module from the sidebar first.");
+                return;
+            }
+
+            // Initialize Clara client if not already initialized
+            const client = initializeClaraClient();
+            
+            // Get module name
+            const moduleName = selectedModule.dataset.moduleName || 'Module';
+            
+            // Close existing interfaces if open
+            if (chatInterface && chatInterface.isOpen) {
+                chatInterface.close();
+            }
+            if (exercisesInterface && exercisesInterface.isOpen) {
+                exercisesInterface.close();
+            }
+            if (revisionInterface && revisionInterface.isOpen) {
+                revisionInterface.close();
+            }
+            
+            // Create and open new chat interface
+            chatInterface = new ChatInterface(client, moduleName);
+            chatInterface.open();
         });
     }
 
     if (exercisesBtn) {
         exercisesBtn.addEventListener('click', () => {
-            console.log("Exercises selected");
+            if (!selectedModule) {
+                console.warn("Please select a module first");
+                alert("Please select a module from the sidebar first.");
+                return;
+            }
+
+            // Initialize Clara client if not already initialized
+            const client = initializeClaraClient();
+            
+            // Get module name
+            const moduleName = selectedModule.dataset.moduleName || 'Module';
+            
+            // Close existing interfaces if open
+            if (chatInterface && chatInterface.isOpen) {
+                chatInterface.close();
+            }
+            if (exercisesInterface && exercisesInterface.isOpen) {
+                exercisesInterface.close();
+            }
+            if (revisionInterface && revisionInterface.isOpen) {
+                revisionInterface.close();
+            }
+            
+            // Create and open new exercises interface
+            exercisesInterface = new ExercisesInterface(client, moduleName);
+            exercisesInterface.open();
         });
     }
 
     if (lessonSchematiserBtn) {
         lessonSchematiserBtn.addEventListener('click', () => {
-            console.log("Lesson Schematiser selected");
+            if (!selectedModule) {
+                console.warn("Please select a module first");
+                alert("Please select a module from the sidebar first.");
+                return;
+            }
+
+            // Initialize Clara client if not already initialized
+            const client = initializeClaraClient();
+            
+            // Get module name
+            const moduleName = selectedModule.dataset.moduleName || 'Module';
+            
+            // Close existing interfaces if open
+            if (chatInterface && chatInterface.isOpen) {
+                chatInterface.close();
+            }
+            if (exercisesInterface && exercisesInterface.isOpen) {
+                exercisesInterface.close();
+            }
+            if (revisionInterface && revisionInterface.isOpen) {
+                revisionInterface.close();
+            }
+            
+            // Create and open new revision interface
+            revisionInterface = new RevisionInterface(client, moduleName);
+            revisionInterface.open();
         });
     }
 
