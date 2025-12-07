@@ -11,15 +11,13 @@ See README.md for setup instructions.
 """
 
 import os
-from dotenv import load_dotenv
 from azure.core.credentials import AzureKeyCredential
 from azure.search.documents import SearchClient
 from azure.search.documents.models import VectorizedQuery
 from openai import OpenAI
+from dotenv import load_dotenv
 
-# Load environment variables from .env file
 load_dotenv()
-
 
 class HybridSearchClient:
     """
@@ -140,6 +138,7 @@ class HybridSearchClient:
             results = self.search_client.search(
                 include_total_count=True,
                 search_text=query,  # BM25 keyword search
+                # filter=f"{self.auth_field} eq {self.user_id}",
                 query_type="semantic",  # Enable semantic ranking
                 semantic_configuration_name=self.semantic_config_name,
                 top=top,
@@ -152,6 +151,20 @@ class HybridSearchClient:
         except Exception as e:
             print(f"Semantic hybrid search failed: {e}")
             raise
+
+    def getAllDocumentsFromUser(self, user_id:str) -> str:
+        """
+        Retrieves all documents' content from a specific user
+        
+        :param user_id: metadata_author saved in the server
+        :type user_id: str
+        :return: A string with the text
+        :rtype: str
+        """
+        results = self.search_client.search(
+            top=100,
+        )
+        return "\n".join([result["content"] for result in results])
 
     def _format_results(self, results) -> dict:
         """
@@ -246,22 +259,3 @@ class HybridSearchClient:
                     print(f"  Content: {result['content'][:300]}...")
 
                 print()
-
-
-def main():
-    """Example usage of the HybridSearchClient."""
-    # Initialize client
-    client = HybridSearchClient()
-    
-    # Perform search
-    query = "What's a WAN?"
-    print(f"🔍 Searching for: '{query}'\n")
-    
-    results = client.search(query, top=7)
-    
-    # Display results
-    client.print_results(results)
-
-
-if __name__ == "__main__":
-    main()
