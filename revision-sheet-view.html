@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Revision Sheet - MyClara</title>
+    <link rel="stylesheet" href="assets/styles/global.css">
+    <link rel="stylesheet" href="assets/styles/revision-sheet-view.css">
+</head>
+<body>
+    <div class="revision-sheet-page">
+        <header class="revision-sheet-header">
+            <div class="revision-sheet-header-content">
+                <h1>Revision Sheet</h1>
+                <span class="revision-sheet-module-name" id="revision-sheet-module-name">Module</span>
+            </div>
+            <button class="revision-sheet-back-btn" id="revision-sheet-back-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+                <span>Back to Dashboard</span>
+            </button>
+        </header>
+        
+        <main class="revision-sheet-main">
+            <div class="revision-sheet-container" id="revision-sheet-container">
+                <div class="revision-sheet-loading" id="revision-sheet-loading">
+                    <div class="revision-sheet-spinner"></div>
+                    <p>Loading revision sheet...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script src="assets/scripts/revision-sheet-view.js"></script>
+</body>
+</html>
+

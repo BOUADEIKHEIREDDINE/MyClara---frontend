@@ -57,13 +57,25 @@ class RevisionInterface {
                 </div>
                 <div class="revision-display-section" id="revision-display-section" style="display: none;">
                     <div class="revision-controls">
-                        <button id="revision-new-btn" class="revision-new-btn">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <line x1="12" y1="5" x2="12" y2="19"></line>
-                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                            </svg>
-                            New Revision Sheets
-                        </button>
+                        <div class="revision-controls-left">
+                            <button id="revision-new-btn" class="revision-new-btn">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                                New Revision Sheets
+                            </button>
+                            <button id="revision-view-sheet-btn" class="revision-view-sheet-btn" disabled>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                                    <polyline points="10 9 9 9 8 9"></polyline>
+                                </svg>
+                                View Original Sheet
+                            </button>
+                        </div>
                         <div class="revision-count">
                             <span id="revision-count-text">0 sheets</span>
                         </div>
@@ -103,6 +115,7 @@ class RevisionInterface {
         const generateBtn = document.getElementById('revision-generate-btn');
         const closeButton = document.getElementById('revision-close-btn');
         const newRevisionBtn = document.getElementById('revision-new-btn');
+        const viewSheetBtn = document.getElementById('revision-view-sheet-btn');
 
         // Set up event listeners
         generateBtn.addEventListener('click', () => this.generateRevisionSheets());
@@ -114,6 +127,11 @@ class RevisionInterface {
         });
         closeButton.addEventListener('click', () => this.close());
         newRevisionBtn.addEventListener('click', () => this.showInputSection());
+        
+        // View sheet button - opens in new page
+        if (viewSheetBtn) {
+            viewSheetBtn.addEventListener('click', () => this.openSheetInNewPage());
+        }
 
         // Load saved state if available
         const hasSavedState = this.loadState();
@@ -209,12 +227,18 @@ class RevisionInterface {
         const inputSection = document.getElementById('revision-input-section');
         const displaySection = document.getElementById('revision-display-section');
         const svgElement = document.getElementById('revision-mindmap-svg');
+        const viewSheetBtn = document.getElementById('revision-view-sheet-btn');
         
         if (inputSection && displaySection) {
             inputSection.style.display = 'block';
             displaySection.style.display = 'none';
             this.revisionSheets = [];
             this.mindmapInstance = null;
+            
+            // Disable view sheet button
+            if (viewSheetBtn) {
+                viewSheetBtn.disabled = true;
+            }
             
             // Clear saved state when starting new revision sheets
             const stateKey = `revision_state_${this.moduleName}`;
@@ -349,6 +373,12 @@ class RevisionInterface {
 
         // Update count
         this.updateCount();
+        
+        // Enable/disable view sheet button based on whether we have sheets
+        const viewSheetBtn = document.getElementById('revision-view-sheet-btn');
+        if (viewSheetBtn) {
+            viewSheetBtn.disabled = !this.revisionSheets || this.revisionSheets.length === 0;
+        }
 
         // Wait for libraries to load and check availability
         const checkLibraries = () => {
@@ -413,6 +443,23 @@ class RevisionInterface {
         attemptDisplay();
     }
 
+
+    /**
+     * Open revision sheet in a new page
+     */
+    openSheetInNewPage() {
+        if (!this.revisionSheets || this.revisionSheets.length === 0) {
+            console.warn('No revision sheets available to view');
+            return;
+        }
+        
+        // Save current page URL to localStorage so we can return to it
+        localStorage.setItem('revisionSheetReturnUrl', window.location.href);
+        
+        // Navigate to revision sheet view page with module name as parameter
+        const url = `revision-sheet-view.html?module=${encodeURIComponent(this.moduleName)}`;
+        window.location.href = url;
+    }
 
     /**
      * Update revision sheets count

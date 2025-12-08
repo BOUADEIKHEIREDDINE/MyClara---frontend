@@ -7,11 +7,20 @@ function convertRAGFormatToMarkmap(revisionSheets) {
     }
 
     // Créer un nœud racine
+    // Remove "Revision Sheet x:" prefix from root label if single sheet
+    let rootLabel = "Revision Sheets";
+    if (revisionSheets.length === 1) {
+        rootLabel = revisionSheets[0].title || "Revision Sheet";
+        // Remove "Revision Sheet x:" prefix
+        rootLabel = rootLabel.replace(/^Revision\s+Sheet\s+\d+:\s*/i, '').trim();
+        if (!rootLabel) {
+            rootLabel = "Revision Sheet";
+        }
+    }
+    
     const rootNode = {
         id: "root",
-        label: revisionSheets.length === 1 
-            ? revisionSheets[0].title || "Revision Sheet" 
-            : "Revision Sheets",
+        label: rootLabel,
         content: revisionSheets.length === 1 
             ? (revisionSheets[0].detailed_explanation || revisionSheets[0].explanation || "")
             : `${revisionSheets.length} revision sheets generated. Click on each topic to explore.`,
@@ -20,7 +29,14 @@ function convertRAGFormatToMarkmap(revisionSheets) {
 
     // Traiter chaque revision sheet
     revisionSheets.forEach((sheet, sheetIndex) => {
-        const sheetTitle = sheet.title || `Sheet ${sheetIndex + 1}`;
+        // Remove "Revision Sheet x:" prefix from title if present
+        let sheetTitle = sheet.title || `Sheet ${sheetIndex + 1}`;
+        // Remove patterns like "Revision Sheet 1:", "Revision Sheet 2:", etc.
+        sheetTitle = sheetTitle.replace(/^Revision\s+Sheet\s+\d+:\s*/i, '').trim();
+        // If title is empty after removal, use fallback
+        if (!sheetTitle) {
+            sheetTitle = `Sheet ${sheetIndex + 1}`;
+        }
         const sheetExplanation = sheet.detailed_explanation || sheet.explanation || "";
         const keyConcepts = Array.isArray(sheet.key_concepts) ? sheet.key_concepts : [];
 

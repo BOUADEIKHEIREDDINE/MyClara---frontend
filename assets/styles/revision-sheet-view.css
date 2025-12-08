@@ -1,0 +1,261 @@
+/* Revision Sheet View Page Styles */
+.revision-sheet-page {
+    min-height: 100vh;
+    background: var(--blue-black-main);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header */
+.revision-sheet-header {
+    background: var(--grey-black-bottom);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 24px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.revision-sheet-header-content {
+    flex: 1;
+}
+
+.revision-sheet-header-content h1 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-light-grey);
+    margin-bottom: 8px;
+}
+
+.revision-sheet-module-name {
+    display: block;
+    font-size: 1rem;
+    color: var(--module-text-light);
+    font-weight: 500;
+}
+
+.revision-sheet-back-btn {
+    padding: 12px 24px;
+    background: rgba(140, 200, 255, 0.15);
+    border: 1px solid rgba(140, 200, 255, 0.3);
+    border-radius: 10px;
+    color: #8CC8FF;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+}
+
+.revision-sheet-back-btn:hover {
+    background: rgba(140, 200, 255, 0.25);
+    border-color: rgba(140, 200, 255, 0.5);
+    transform: translateX(-2px);
+}
+
+.revision-sheet-back-btn:active {
+    transform: translateX(0);
+}
+
+/* Main Content */
+.revision-sheet-main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 40px;
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+.revision-sheet-container {
+    width: 100%;
+}
+
+/* Loading State */
+.revision-sheet-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 20px;
+    color: var(--module-text-light);
+}
+
+.revision-sheet-loading.hidden {
+    display: none;
+}
+
+.revision-sheet-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(140, 200, 255, 0.2);
+    border-top-color: #8CC8FF;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Revision Sheet Content */
+.revision-sheet-item {
+    background: var(--grey-black-bottom);
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.revision-sheet-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.revision-sheet-item:last-child {
+    margin-bottom: 0;
+}
+
+.revision-sheet-item-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-light-grey);
+    margin-bottom: 16px;
+    line-height: 1.3;
+}
+
+.revision-sheet-item-explanation {
+    color: var(--module-text-light);
+    font-size: 1.05rem;
+    line-height: 1.7;
+    margin-bottom: 24px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.revision-sheet-item-concepts {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.revision-sheet-item-concepts-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-light-grey);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.revision-sheet-item-concepts-title::before {
+    content: "";
+    width: 4px;
+    height: 20px;
+    background: #8CC8FF;
+    border-radius: 2px;
+}
+
+.revision-sheet-item-concepts-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 12px;
+}
+
+.revision-sheet-item-concepts-list li {
+    padding: 16px 20px;
+    background: rgba(140, 200, 255, 0.08);
+    border-left: 3px solid #8CC8FF;
+    border-radius: 8px;
+    color: var(--text-light-grey);
+    font-size: 1rem;
+    line-height: 1.5;
+    transition: all 0.2s ease;
+}
+
+.revision-sheet-item-concepts-list li:hover {
+    background: rgba(140, 200, 255, 0.15);
+    transform: translateX(4px);
+}
+
+/* Empty State */
+.revision-sheet-empty {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--module-text-light);
+}
+
+.revision-sheet-empty h2 {
+    font-size: 1.5rem;
+    color: var(--text-light-grey);
+    margin-bottom: 12px;
+}
+
+.revision-sheet-empty p {
+    font-size: 1.05rem;
+    margin-bottom: 24px;
+}
+
+/* Scrollbar */
+.revision-sheet-main::-webkit-scrollbar {
+    width: 10px;
+}
+
+.revision-sheet-main::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 5px;
+}
+
+.revision-sheet-main::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+}
+
+.revision-sheet-main::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .revision-sheet-header {
+        padding: 20px 24px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .revision-sheet-header-content h1 {
+        font-size: 1.5rem;
+    }
+
+    .revision-sheet-back-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .revision-sheet-main {
+        padding: 24px 16px;
+    }
+
+    .revision-sheet-item {
+        padding: 24px 20px;
+    }
+
+    .revision-sheet-item-title {
+        font-size: 1.5rem;
+    }
+
+    .revision-sheet-item-explanation {
+        font-size: 1rem;
+    }
+}
+

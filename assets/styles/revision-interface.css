@@ -249,6 +249,13 @@
     padding-bottom: 16px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     flex-shrink: 0;
+    gap: 12px;
+}
+
+.revision-controls-left {
+    display: flex;
+    gap: 12px;
+    align-items: center;
 }
 
 .revision-new-btn {
@@ -285,6 +292,37 @@
     border-radius: 8px;
     min-height: 0;
     width: 100%;
+}
+
+.revision-view-sheet-btn {
+    padding: 10px 16px;
+    background: rgba(140, 200, 255, 0.15);
+    border: 1px solid rgba(140, 200, 255, 0.3);
+    border-radius: 8px;
+    color: #8CC8FF;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.revision-view-sheet-btn:hover {
+    background: rgba(140, 200, 255, 0.25);
+    border-color: rgba(140, 200, 255, 0.5);
+}
+
+.revision-view-sheet-btn.active {
+    background: rgba(140, 200, 255, 0.25);
+    border-color: #8CC8FF;
+}
+
+.revision-view-sheet-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 .revision-mindmap-svg {
@@ -324,6 +362,21 @@
 .revision-mindmap-svg tspan {
     fill: #ffffff !important;
     color: #ffffff !important;
+}
+
+/* Force all text elements in mindmap to be white */
+.revision-mindmap-svg * {
+    fill: #ffffff !important;
+    color: #ffffff !important;
+}
+
+.revision-mindmap-svg text,
+.revision-mindmap-svg tspan,
+.revision-mindmap-svg .markmap-node text,
+.revision-mindmap-svg .markmap-node tspan {
+    fill: #ffffff !important;
+    color: #ffffff !important;
+    stroke: none !important;
 }
 
 .revision-mindmap-svg .markmap-link {
